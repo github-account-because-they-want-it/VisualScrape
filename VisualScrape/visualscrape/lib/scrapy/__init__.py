@@ -1,0 +1,1 @@
+from visualscrape.lib.scrapy.scrapy_crawl import ScrapyCrawler

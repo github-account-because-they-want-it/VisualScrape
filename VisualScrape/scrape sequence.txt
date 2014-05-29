@@ -1,0 +1,103 @@
+1- The start page.
+2- The Items and their selectors and types.
+3- The paging and related selectors.
+4- Start Crawling.
+
+A selector can lead to another
+url to follow or an item to scrape. So this should be also specified with the selector.
+If the selector leads to a url to follow or to scrape, the spider Rules are 
+suitable for that. If it leads to an Item to scrape, then the selector 
+shall be a list of InterestSelector objects.
+Then we can start scraping. That should be done in a general way.
+For each selector:
+  if it was a url selector: follow the result, or append it where it can be followed
+  else if it was an item selector (list of InterestSelector): return the item instead.
+Of course, the scraped stuff might need input and output pipelining, and/or
+processors.
+Url fields may need canonicalization for example. So i'll provide some processors
+for convenience and use them when absolutely necessary, like with image_urls fields
+I got an idea now for making ItemPipelines work for the image_urls field
+By default, the Pipeline gets passed the spider, very useless.
+Since I need the response url to be able to canonicalize the image urls,
+i'll make that a field on the scraped item and pop it in the pipeline.
+Each selector can have a backup selector (or selectors).
+The whole setup can start (and for flexibility, in between) with a login process.
+Though i've never found a mid-session login process.
+This is becoming a general web-automation tool.
+There's a software component that collects information.
+Another that uses that information to construct spider and related classes and settings.
+Another class should provide the real crawling, and accept handlers for the resulting
+items. Probably as the last stage in a pipeline.
+What about data exporting?.
+Scrapy has several exporters by default. So declaring the format and output directory
+will be enough. Scrapy also allows extending these mechanisms
+Also, There should be a component that abstracts obtaining results, wither from a spider or a browser.
+So, how should an interaction go?
+---------------------------------------------------------
+1- The CrawlPath class collects 
+  a- selectors
+  b- selector types (url to follow or item to scrape)
+  c- backup selectors, in case original selector fails
+  d- Login data, if required.
+2- Some kind of an (Engine) configures that CrawlPath object.
+3- The engine has some choices, with priorities, of which scraper to choose.
+4- The engine creates an instance of the highest priority (preference) scraper.
+5- The engine passes the CrawlPath to the scraper
+6- The engine configures some (item handler) object(s), and registers them with
+  the scraper.
+7- The engine reads about it's configured validators, creates them and passes the items to them
+  when received.
+8- The engine connects itself to the scraper start and stop signals, and broadcasts them to interested
+   subjects when received.
+8- The engine orders the scraper to start scraping.
+9- The engine uses receives items, so it passes them to the validators, and any registered handlers.
+10- The engine recieves the items from validators (which may modify the items), and passes them to
+  the next validator, and so on.
+  I think the validator can be modeled as a pipeline class. It can return back the possible
+  fixed item, or None, which means it dropped the item.
+11- The engine calculates a score for this scraper. Possibly with a threshold, the engine accepts or refuses
+  the current scraper results.
+12- If score is insufficient, the engine starts at step 4
+-----------------------------------------------------------------------------------------
+What do I want now?. I'm very confused.
+If the Path class is Form, then I don't want to scrape any data from that page. From the following page
+maybe. So I'll take the Path (whatever, i forgot)
+WTF should I do now?. I want to support endless travel on this spider.
+I think if the method is generic enough, it will be called from scrapy
+and it shouldn't cause problems.
+-----------------------------------------------------------------------------------------
+How should I configure the engine?. And where should I store it?
+I think it can be exported to the parent area. Or maybe not.
+-----------------------------------------------------------------------------------------
+The spider logic is quite broken now. First, the URL extraction is done out
+of sequence. This might not be a problem, but now I also don't know when to
+declare a path traveled.
+Every selector can result in several requests. I mean the url selectors here. 
+Probably I should have a couple of parse methods. One for urls, another for items?
+I think it can go like that for the Scrapy spider:
+It's the same as now, but I'll try all selectors on all retrieved pages, and not just the
+pages they were intended to filter. But this might find accidental items, and will complicate
+filtering.
+So what should I do?
+Each site-selectors combination should have it's own parser method.
+This way, i can differntiate between paths.
+That's good and I can do it. But I think my spider path scheme is fucked.
+Or at least I don't know how to use it!. Or maybe i do
+I think that the Path idea was wrong.
+The spider path should be setup like this:
+1- Add a start destination (url to follow, form to post)
+2- Add a selector (item selector or url selector) and you know what to do with these
+3- Add another selector and so on...
+4- A url selector may declare that it's a termination url and thus it's 
+   results shouldn't be scraped. And how should I continue after that?.
+---------------------------------------------------------------------------------------
+So, what's the spider algorithm?
+Now I want to fuckin' connect the spider signals to their handlers
+The handlers can come relatively easily from callers. But how can I connect the
+damn spider signals to them?. The spider doesn't have access to it's own signals it
+seems
+---------------------------------------------------------------------------------------
+Now, I want to attach a favicon field to the first scraped item. I may make a special
+request method for it, instead of tracking it the whole time in he main scraping method.
+How can I make the first item that special?. I can add it in the pipeline, but
+that won't make it automatically downloaded by Scrapy
