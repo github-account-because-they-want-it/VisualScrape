@@ -5,7 +5,7 @@ Created on May 29, 2014
 
 import unittest
 from visualscrape.engine import CrawlEngine
-from visualscrape.lib.path import SpiderPath, URL, Form
+from visualscrape.lib.path import SpiderPath, URL, Form, MainPage
 from visualscrape.lib.selector import ItemSelector, FieldSelector
 
 nefsak_laptop_info = ItemSelector([
@@ -35,7 +35,12 @@ class Test(unittest.TestCase):
   
   def test_run(self):
     path = SpiderPath()
-    laptop_nav_urls = ItemSelector("Page Urls", [r"nefsak\.com/15-17-Screen/\?page=\d+"], FieldSelector.URL_CONTENT)
-    path.addStep(URL("http://www.nefsak.com/15-17-Screen/")).addStep(laptop_nav_urls).addStep(nefsak_laptop_info)
+    main_page = MainPage(FieldSelector("Laptop Page Selector", [r"//div[@class='pr_list_title']//a/@href"],
+                                        FieldSelector.XPATH), nefsak_laptop_info, r"nefsak\.com/15-17-Screen/\?page=\d+",
+                         '//div[contains(@class,"navigation_holder")]')
+    path.addStep(URL("http://www.nefsak.com/15-17-Screen/")).addStep(main_page)
     engine = CrawlEngine()
-    engine.add_spider("NefsakLaptopSpider").set_path()
+    engine.add_spider("NefsakLaptopSpider").set_path(path).start()
+    """HINT: Sites that has redirects actually calls the callback"""
+if __name__ == "__main__":
+  unittest.main()

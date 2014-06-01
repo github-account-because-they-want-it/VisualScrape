@@ -45,3 +45,20 @@ class Form(object):
     
   def __str__(self):
     return "<Form: {0}>".format(self.url)
+  
+class MainPage(object):
+  """This is the final destination of the spider and the reason for the crawling process"""
+  def __init__(self, itemPageSelector=None, itemSelector=None, similarPagesSelector=None, similarPagesXpathRestrict=None):
+    """
+    itemPageSelector -- a FieldSelector object
+    itemSelector -- an ItemSelector object
+    similarPagesSelector -- regex string that matches nav urls that get more item pages
+    similarPagesXpathRestrict -- xpath selector string
+    """
+    self.item_page_selector = itemPageSelector
+    self.item_selector = itemSelector
+    self.similar_pages_selector = similarPagesSelector 
+    self.similar_pages_restrict = similarPagesXpathRestrict 
+    
+  def __str__(self):
+    return "<MainPage: {0}>".format(self)

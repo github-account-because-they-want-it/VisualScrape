@@ -1,6 +1,5 @@
 '''
 Created on May 25, 2014
-
 @author: Mohammed Hamdy
 '''
 
@@ -32,3 +31,9 @@ class InterestItem(Item):
         self.fields[selector.name] = Field()
     # add an id field, to identify items with their spiders
     self.fields["id"] = Field() 
+    
+    
+class FaviconItem(Item):
+  id = Field()
+  image_urls = Field()
+  images = Field()

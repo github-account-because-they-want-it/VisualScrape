@@ -1,1 +1,0 @@
-from lib.crawl.scrapy_crawl import ScrapyCrawler

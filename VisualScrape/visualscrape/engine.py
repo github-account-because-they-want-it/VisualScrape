@@ -15,7 +15,7 @@ class CrawlEngine(object):
     self.spiders_info = [] # multi-spider support
     self.current_spider_info = None
     
-  def add_spider(self, spiderName=SpiderInfo.DEFAULT_NAME):
+  def add_spider(self, spiderName="TestSpider"):
     self.current_spider_info = SpiderInfo(spiderName=spiderName)
     self.spiders_info.append(self.current_spider_info)
     return self

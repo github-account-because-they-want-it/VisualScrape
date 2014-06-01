@@ -3,11 +3,9 @@ Created on May 27, 2014
 @author: Mohammed Hamdy
 '''
 
-def Singleton(cls):
+class Singleton(object):
+  """How to create a singleton by a decorator?"""
   inst = None
-  def init(*args, **kwargs):
-    if not inst:
-      inst = cls(*args, **kwargs)
-    return inst
-  return init
-      
+  
+  def __new__(cls, *args, **kwargs):
+    pass
