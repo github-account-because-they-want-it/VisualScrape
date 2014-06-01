@@ -3,6 +3,7 @@ Created on May 26, 2014
 @author: Mohammed Hamdy
 '''
 from scrapy.contrib.spiders import CrawlSpider, Rule
+from scrapy.spider import Spider
 from scrapy.http import Request, FormRequest
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import Selector
@@ -15,7 +16,7 @@ from visualscrape.lib.scrapylib.itemloader import DefaultItemLoader
 from visualscrape.lib.selector import FieldSelector
 from visualscrape.lib import Signal
 
-class ScrapyCrawler(CrawlSpider):
+class ScrapyCrawler(Spider):
   """
   This spider now doesn't support multiple urls per path, something 
   like start_urls=[url1, more than 1 url...]
@@ -31,6 +32,9 @@ class ScrapyCrawler(CrawlSpider):
     self.favicon_item = None
     # use rules to obtain navigation urls
     main_page = self.path[-1]
+    # use start_urls instead of start_requests
+    first_step = self.path[0]
+    self.start_urls = [first_step if type(first_step) == URL else first_step.url]
     self.rules = [Rule(SgmlLinkExtractor(allow=(main_page.similar_pages_selector,) if main_page.similar_pages_selector else (),
                        restrict_xpaths=(main_page.similar_pages_restrict,) if main_page.similar_pages_restrict else ()),
                         callback=self.parse_item_pages)]
@@ -38,8 +42,29 @@ class ScrapyCrawler(CrawlSpider):
   def parse_start_url(self, response):
     """First parse will need to differentiate between URL and form requests. With this method, I
        can't pass meta argument with the request to help tell the difference"""
-    pass   
+    first_step = self.path.pop(0)
+    if type(first_step) == URL:
+      start_url = first_step
+    elif type(first_step) == Form:
+      callback = self.parse_intermediate if type(self.path[0]) == URL else self.parse_item_pages
+      request = FormRequest.from_response(response, formdata=first_step.data,
+                                          callback=callback)  
+      start_url =  first_step.url
+      yield request
+    if self.favicon_required: #the first item contains only the favicon
+      #obtain the favicon url
+      url_components = urlparse.urlparse(start_url)
+      favicon_url = urlparse.urljoin(url_components.scheme + "://" + url_components.netloc, "favicon.ico")
+      favicon_item = FaviconItem()
+      favicon_item["image_urls"] =  [favicon_url]
+      favicon_item["id"] =  self.id
+      self.favicon_item = favicon_item #assign it to be returned later. can't return here
+    yield Request("http://www.google.com", callback=self.parse_item_pages)
     
+  def parse(self):
+    print "Fuck Off!"  
+  
+  """  
   def start_requests(self):
     #this might not work as per docs if it returns items. see Spiders page
     start_path = self.path.pop(0)
@@ -62,6 +87,7 @@ class ScrapyCrawler(CrawlSpider):
       favicon_item["id"] =  self.id
       self.favicon_item = favicon_item #assign it to be returned later. can't return here
     return [request]
+  """
   
   def parse_intermediate(self, response):
     """This should continue until there's only one item in self.path which is
