@@ -22,3 +22,4 @@ SCRAPER_CLASSES = {"visualscrape.lib.scrapylib.ScrapyCrawler" : 1,
 ITEM_LOADER = "visualscrape.lib.scrapylib.itemloader.DefaultItemLoader"
 
 DOWNLOAD_FAVICON = True
+

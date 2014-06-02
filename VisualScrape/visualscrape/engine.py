@@ -56,9 +56,6 @@ class SpiderInfo(object):
     self.spider_name = spiderName
     self.signals_handlers_map = signalsToHandlersMap
     
-  def set_signal_handlers(self, signalsToHandlersMap):
-    self.signals_handlers_map = signalsToHandlersMap
-    
   def set_path(self, path):
     self.spider_path = path
     

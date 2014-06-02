@@ -9,7 +9,7 @@ import sys
 class SeleniumCrawler(object):
   
   def __init__(self, spiderPath, name="SeleniumCrawler"):
-    self.path = spiderPath
+    self._path = spiderPath
     self.name = name
     self.browser = webdriver.Firefox()
     #try to run headless on linux

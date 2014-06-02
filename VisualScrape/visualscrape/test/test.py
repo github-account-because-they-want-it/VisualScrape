@@ -39,6 +39,7 @@ class Test(unittest.TestCase):
                                         FieldSelector.XPATH), nefsak_laptop_info, r"nefsak\.com/15-17-Screen/\?page=\d+",
                          '//div[contains(@class,"navigation_holder")]')
     path.addStep(URL("http://www.nefsak.com/15-17-Screen/")).addStep(main_page)
+    #_path.addStep(URL("http://xyasdmldfkhujdfs")).addStep(main_page)
     engine = CrawlEngine()
     engine.add_spider("NefsakLaptopSpider").set_path(path).start()
     """HINT: Sites that has redirects actually calls the callback"""

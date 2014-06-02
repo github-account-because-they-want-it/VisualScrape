@@ -6,6 +6,7 @@ Created on May 25, 2014
 from scrapy.item import Item, Field
 from visualscrape.lib.selector import FieldSelector
 
+
 class InterestItem(Item):
   """
   Provides an automatic Item from a list of Selector objects,
@@ -29,11 +30,11 @@ class InterestItem(Item):
           self.fields["images"] = Field()
       elif selector.content_type == FieldSelector.TEXT_CONTENT:
         self.fields[selector.name] = Field()
-    # add an id field, to identify items with their spiders
-    self.fields["id"] = Field() 
+    # add an _id field, to identify items with their spiders
+    self.fields["_id"] = Field() 
     
     
 class FaviconItem(Item):
-  id = Field()
+  _id = Field()
   image_urls = Field()
   images = Field()
