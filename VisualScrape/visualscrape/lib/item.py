@@ -35,6 +35,6 @@ class InterestItem(Item):
     
     
 class FaviconItem(Item):
-  _id = Field()
+  id = Field()
   image_urls = Field()
   images = Field()
