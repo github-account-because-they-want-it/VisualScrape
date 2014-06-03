@@ -38,7 +38,7 @@ class Test(unittest.TestCase):
     main_page = MainPage(FieldSelector("Laptop Page Selector", [r"//div[@class='pr_list_title']//a/@href"],
                                         FieldSelector.XPATH), nefsak_laptop_info, r"nefsak\.com/15-17-Screen/\?page=\d+",
                          '//div[contains(@class,"navigation_holder")]')
-    path.addStep(URL("http://www.nefsak.com/15-17-Screen/")).addStep(main_page)
+    path.addStep(URL("https://www.nefsak.com/15-17-Screen/")).addStep(main_page)
     #_path.addStep(URL("http://xyasdmldfkhujdfs")).addStep(main_page)
     engine = CrawlEngine()
     engine.add_spider("NefsakLaptopSpider").set_path(path).start()

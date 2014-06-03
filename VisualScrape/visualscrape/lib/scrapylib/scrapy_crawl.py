@@ -2,8 +2,7 @@
 Created on May 26, 2014
 @author: Mohammed Hamdy
 '''
-from scrapy.contrib.spiders import CrawlSpider, Rule
-from scrapy.spider import Spider
+from scrapy.contrib.spiders import CrawlSpider
 from scrapy.http import Request, FormRequest
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import Selector
@@ -135,7 +134,7 @@ class ScrapyCrawler(CrawlSpider):
 from twisted.internet import reactor
 import os
 from scrapy.crawler import Crawler
-from scrapy import log, signals
+from scrapy import log
 from scrapy.utils.project import get_project_settings
 
 
@@ -151,7 +150,7 @@ class ScrapyManager(object):
     
   def start_all(self):
     """Currently, all the spiders are run within the same process"""
-    log.start()
+    log.start(loglevel=log.DEBUG)
     for (id, sp_info) in enumerate(self.spiders_info):
       spider = ScrapyCrawler(sp_info.spider_path, id, sp_info.spider_name)
       spider.registerHandlers(sp_info.signals_handlers_map)

@@ -6,7 +6,7 @@ Created on May 27, 2014
 As it turns out, this module might be totally useless. 
 Scrapy has scrapy.settings.Settings
 """
-from visualscrape.lib.util import Singleton
+from visualscrape.lib.util import MySingleton
 from visualscrape import settings
 
 class SettingsReader(object):
