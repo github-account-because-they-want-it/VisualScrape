@@ -80,7 +80,7 @@ pages they were intended to filter. But this might find accidental items, and wi
 filtering.
 So what should I do?
 Each site-selectors combination should have it's own parser method.
-This way, i can differntiate between paths.
+This way, i can differentiate between paths.
 That's good and I can do it. But I think my spider path scheme is fucked.
 Or at least I don't know how to use it!. Or maybe i do
 I think that the Path idea was wrong.
@@ -101,3 +101,14 @@ Now, I want to attach a favicon field to the first scraped item. I may make a sp
 request method for it, instead of tracking it the whole time in he main scraping method.
 How can I make the first item that special?. I can add it in the pipeline, but
 that won't make it automatically downloaded by Scrapy
+---------------------------------------------------------------------------------------
+Now that scrapy selectors are different from selenium, and they'll even raise
+exceptions if used, I need a conversion step to the selectors, before they can be used
+with selenium webdriver.
+What can I do. I'm lost.
+First, the itemPageSelector. This is obviously a url selector, so the converter
+should take it and the browser, strip off the extra parts, probably canonicalize,
+and return it to the browser.
+Ok, that's good for link selectors.
+We've got also the text ones. And now the converter should take the selector, and
+actually return the required text.

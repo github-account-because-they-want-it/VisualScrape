@@ -2,12 +2,21 @@
 Created on May 28, 2014
 @author: Mohammed Hamdy
 '''
-class Signal(object):
-  """Defines constants for supported signals"""
-  
-  SPIDER_STARTED = 1
-  SPIDER_STOPPED = 2
-  SPIDER_CLOSED = 3
-  ITEM_SCRAPED   = 4
-  SPIDER_ERROR   = 5
-  SPIDER_SWITCHED = 6
+class Signal(object): pass
+
+class SpiderStarted(Signal):
+  def __init__(self, id):
+    self.id = id
+    
+class SpiderStopped(Signal):
+  def __init__(self, id):
+    self.id = id
+
+class SpiderClosed(Signal):
+  def __init__(self, id):
+    self.id = id
+
+class SpiderSwiched(Signal): pass
+
+class ItemScraped(Signal): pass
+

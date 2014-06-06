@@ -16,10 +16,12 @@ ITEM_PIPELINES = {'scrapy.contrib.pipeline.images.ImagesPipeline': 1,
 
 IMAGES_STORE = "D:/scraped_images" #relative to the project directory?
 
-SCRAPER_CLASSES = {"visualscrape.lib.scrapylib.ScrapyCrawler" : 1,
+SCRAPER_CLASSES = {#"visualscrape.lib.scrapylib.ScrapyCrawler" : 1,
                    "visualscrape.lib.seleniumlib.SeleniumCrawler" : 2}
 
 ITEM_LOADER = "visualscrape.lib.scrapylib.itemloader.DefaultItemLoader"
 
 DOWNLOAD_FAVICON = True
 
+FEED_FORMAT = "json"
+FEED_URI = "file:///C:/Users/Tickler/Desktop/example.json"

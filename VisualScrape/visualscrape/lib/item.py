@@ -31,7 +31,7 @@ class InterestItem(Item):
       elif selector.content_type == FieldSelector.TEXT_CONTENT:
         self.fields[selector.name] = Field()
     # add an _id field, to identify items with their spiders
-    self.fields["_id"] = Field() 
+    self.fields["id"] = Field() 
     
     
 class FaviconItem(Item):

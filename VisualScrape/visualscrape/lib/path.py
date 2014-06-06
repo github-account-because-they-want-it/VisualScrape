@@ -20,6 +20,7 @@ class SpiderPath(list):
   def __str__(self):
     return "<SpiderPath: {0}>".format(" *>".join(self))
     
+    
 class URL(str):
   
   def canonicalize(self, parentURL):
@@ -31,14 +32,26 @@ class URL(str):
       return urlparse.urljoin(parsed_parent.scheme + "://" + parsed_parent.netloc, self)
   
   def __str__(self):
-    return "<URL : {0}>".format(self)
+    return "<URL : " + self + " >"
 
+class FormElemInfo(object):
+  INPUT_TEXT = 1
+  INPUT_SELECT = 2
+  
+  def __init__(self, elemName, elemValue, elemType=INPUT_TEXT):
+    self.name = elemName
+    self._value = elemValue
+    self.type = elemType
+    
+  def __str__(self):
+    return "<FormElemInfo name=%s - _value=%s - type=%s>" % (self.name, self._value, 
+                "text-input" if self.type == self.INPUT_TEXT else "select-input")
   
 class Form(object):
   
   def __init__(self, formUrl, formData={}):
     self.url = formUrl
-    self.data = formData
+    self.data = formData #a list of FormElemInfo objects
     
   def addField(self, fieldName, fieldValue):
     self.data.setdefault(fieldName, fieldValue)

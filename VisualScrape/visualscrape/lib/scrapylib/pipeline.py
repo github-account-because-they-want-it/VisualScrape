@@ -6,6 +6,8 @@ Created on May 28, 2014
 class FilterFieldsPipeline(object):
   """
   Remove unwanted? fields in the result like image_urls
+  Assuming the images from the image pipeline get processed
+  immediately, not after the whole pipeline is traversed.
   """
   
   def process_item(self, item, spider):

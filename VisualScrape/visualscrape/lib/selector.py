@@ -26,7 +26,7 @@ class FieldSelector(object):
     selectors -- an iterable of CSS/XPATH selector(s), the second to last, if exist, are backups to the first
     type -- the selector type (xpath or css), taken from the class's constants
     contentType -- the content type of selected data (text or image), taken from
-                   the class's constants
+                   this class's constants
     """
     self.name = name
     self.selectors = selectors
@@ -45,6 +45,7 @@ class FieldSelector(object):
   
   def __iter__(self):
     """Support the iteration protocol"""
+    self.selector_index = 0
     return self
   
   def next(self):

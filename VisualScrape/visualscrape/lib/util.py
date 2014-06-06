@@ -2,6 +2,8 @@
 Created on May 27, 2014
 @author: Mohammed Hamdy
 '''
+import httplib, urlparse, os
+from scrapy import log
 
 class SingletonMeta(type):
   """Used as a metaclass, this singleton works as it should"""
@@ -29,6 +31,28 @@ def MySingleton(initMethod):
   return init_replacement
 
 
+def download_image(imageUrl, savePath):
+  """Download an image (or maybe any file) and return it's save location, on success"""
+  if not os.path.exists(savePath):
+    os.mkdir(savePath)
+  parsed_url = urlparse.urlparse(imageUrl)
+  try:
+    con = httplib.HTTPConnection(parsed_url.netloc)
+    con.request("GET", parsed_url.path)
+    response = con.getresponse()
+    image_data = response.read()
+    # determine the image name from the it's url path
+    image_name = imageUrl[imageUrl.rfind('/') + 1:]
+    save_to = os.path.join(savePath, image_name)
+    out = open(save_to, "wb")
+    out.write(image_data)
+    out.close()
+    return save_to
+  except httplib.HTTPException as he:
+    log.err("Error downloading image <%s>" % imageUrl)
+  except OSError as oe:
+    log.err("Couldn't save %s :Access denied" % save_to)
+  
 if __name__ == "__main__":
   class T:
     __metaclass__ = SingletonMeta
