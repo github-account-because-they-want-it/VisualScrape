@@ -13,6 +13,7 @@ from visualscrape.lib.seleniumlib.handler import SeleniumDataHandler
 from visualscrape.lib.seleniumlib import log
 from visualscrape.lib.signal import *
 import sys
+from visualscrape.lib.selector import UrlSelector
 
 class SeleniumCrawler(object):
   
@@ -37,10 +38,14 @@ class SeleniumCrawler(object):
       favicon_item = self.data_handler.favicon_item() #send it to the item-scraped handler
       self.event_handler.emit(ItemScraped(), item=favicon_item)
     self._crawl_current_nav()
-    more_nav = self.data_handler.more_navigation_pages()
+    more_nav, action = self.data_handler.more_navigation_pages()
     while more_nav:
       for nav_page in more_nav:
-        self.nav_browser.get(nav_page)
+        if action == UrlSelector.ACTION_VISIT:
+          self.nav_browser.get(nav_page)
+        elif action == UrlSelector.ACTION_CLICK:
+          nav_page.click()
+          self._wait(self.nav_browser)
         self._crawl_current_nav()
       more_nav = self.data_handler.more_navigation_pages()
     self._finishoff()
@@ -77,26 +82,33 @@ class SeleniumCrawler(object):
       for elem_info in form_data:
         elem = self.nav_browser.find_element_by_name(elem_info.name) 
         if elem_info.type == FormElemInfo.INPUT_TEXT:
-          elem.send_keys(elem_info._value)
+          elem.send_keys(elem_info.value)
         elif elem_info.type == FormElemInfo.INPUT_SELECT:
           elem = Select(elem)
-          elem.select_by_visible_text(elem_info._value)
+          elem.select_by_visible_text(elem_info.value)
       elem.submit()
       # wait for anything on the screen :)
-      try: 
-        WebDriverWait(self.nav_browser, 30).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-      except TimeoutException:
-        log.error("Scraping timed out after submitting: %s ... exiting" % form_url)
-        self._finishoff()
-        sys.exit(1)
+      self._wait()
   
   def _crawl_current_nav(self):
     """Scrape all items on the current items page"""
-    current_item_pages = self.data_handler.item_pages()
+    current_item_pages, action = self.data_handler.item_pages()
     for item_page in current_item_pages:
-      self.item_browser.get(item_page)
+      if action == UrlSelector.ACTION_VISIT:
+        self.item_browser.get(item_page)
+      elif action == UrlSelector.ACTION_CLICK:
+        item_page.click()
+        self._wait(self.item_browser)
       item = self.data_handler.next_item()
       self.event_handler.emit(ItemScraped(), item=item)
+      
+  def _wait(self, browser, elem="body"):
+    try: 
+        WebDriverWait(browser, 30).until(EC.presence_of_element_located((By.TAG_NAME, elem)))
+    except TimeoutException:
+      log.error("Scraping timed out for: %s ... exiting" % browser.current_url)
+      self._finishoff()
+      sys.exit(1)
     
   @staticmethod
   def get_manager():
@@ -109,14 +121,13 @@ class SeleniumManager(object):
     self.spiders_info = spidersInfo
     self.crawlers = []
     for (id, sp_info) in enumerate(spidersInfo):
-      crawler = SeleniumCrawler(sp_info.spider_path, id, sp_info.spider_name, eventHandler=sp_info.event_handler)
+      # start ids at 100 for selenium to make it's ids distinct from scrapy. 
+      # TODO: read the start id from settings
+      crawler = SeleniumCrawler(sp_info.spider_path, id+100, sp_info.spider_name, eventHandler=sp_info.event_handler)
       self.crawlers.append(crawler)
       
   def start_all(self):
     for crawler in self.crawlers: 
       crawl_process = Process(target=crawler.start, args=())
       crawl_process.start()
-    #probably you want to create a process for each spider to run in. It's going to block a lot of shit
-    """Now, I want to manage the multiprocessing stuff.
-    With scrapy it's gonna be complicated, So I'll use the same process for all spiders.
-    With selenium, A process for each spider will be optimal."""
+      

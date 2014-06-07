@@ -17,7 +17,7 @@ class FieldSelector(unicode):
   """
   XPATH = 0
   CSS   = 1
-  REGEX = 2
+  REGEX = 2 
   def __new__(cls, selector, *args, **kwargs): #override new to accept an extra argument
     return unicode.__new__(cls, selector)
   
@@ -40,10 +40,19 @@ class FieldSelector(unicode):
 class UrlSelector(FieldSelector):
   ACTION_VISIT = 1
   ACTION_CLICK = 2
+  UNIQUE_HREF = 11
+  UNIQUE_TEXT = 12
+  UNIQUE_ONCLICK = 13
   
-  def __init__(self, selector, type, action=ACTION_VISIT):
+  def __init__(self, selector, type, action=ACTION_VISIT, uniqueAttr=UNIQUE_HREF):
+    """
+    Args:
+      action : Whether the link should be clicked, or href extracted and visited
+      uniqueAttr : The link attribute that makes the link special. This helps me keep track of duplicates
+    """
     super(UrlSelector, self).__init__(selector, type)
     self.action = action
+    self.unique_attr = uniqueAttr
     
   def __unicode__(self):
     return "<UrlSelector selector=%s, type=%s, action=%s>".format(

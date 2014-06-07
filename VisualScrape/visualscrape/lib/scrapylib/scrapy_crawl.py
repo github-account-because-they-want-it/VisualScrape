@@ -86,12 +86,12 @@ class ScrapyCrawler(CrawlSpider):
         elif key_selector.type == FieldSelector.CSS:
           key = self.css(key_selector).extract()
         if key: key = key[0]
-        else: key = "Invalid_Key_Selector" #this may pack in all values with invalid keys with one key.
+        else: key = "Invalid_Key_Selector" #this may pack in all values with invalid keys with this key.
       item_info["keys"].append(key)
       value_selector = key_value_selector.value_selector
       item_info["values"].append(value_selector)
     # dynamically create the item from collected keys. The item must be created before the item loader
-    item = InterestItem(item_info["keys"])() # And instantiate it too ;)
+    item = InterestItem(item_info["keys"])
     item_loader = DefaultItemLoader(item, response=response, response_ctx=response) #pass the response to i/o processors
     for (key, value_selector) in zip(item_info["keys"], item_info["values"]):
       if value_selector.type == FieldSelector.CSS:

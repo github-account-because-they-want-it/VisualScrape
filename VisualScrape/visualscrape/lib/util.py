@@ -31,7 +31,7 @@ def MySingleton(initMethod):
   return init_replacement
 
 
-def download_image(imageUrl, savePath):
+def download_image(imageUrl, savePath, replace=False):
   """Download an image (or maybe any file) and return it's save location, on success"""
   if not os.path.exists(savePath):
     os.mkdir(savePath)
@@ -44,6 +44,7 @@ def download_image(imageUrl, savePath):
     # determine the image name from the it's url path
     image_name = imageUrl[imageUrl.rfind('/') + 1:]
     save_to = os.path.join(savePath, image_name)
+    if os.path.exists(save_to) and not replace: return save_to
     out = open(save_to, "wb")
     out.write(image_data)
     out.close()

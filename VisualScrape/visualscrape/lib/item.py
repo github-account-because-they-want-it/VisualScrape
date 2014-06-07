@@ -10,7 +10,7 @@ def InterestItem(nameList):
   # add the id field. To identify items with different spiders. It also won't hurt to add the image fields, even if not used
   nameList.extend(["id", "image_urls", "images"]) 
   # different from the docs. But it works ;). Hail the debugger!
-  return type("InterestItem", (DictItem,), {"fields":{field_name:Field() for field_name in nameList}}) 
+  return type("InterestItem", (DictItem,), {"fields":{field_name:Field() for field_name in nameList}})() #instantiate
     
 class FaviconItem(Item):
   id = Field()
