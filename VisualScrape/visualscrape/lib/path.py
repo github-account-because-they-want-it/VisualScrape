@@ -7,13 +7,13 @@ import urlparse
 class SpiderPath(list):
   """
   Collect information about the path that the spider will travel. 
-  addStep should be called by the sequence in which the
+  add_step should be called by the sequence in which the
   spider will move.
   Supports iteration. Returns Paths and/or Forms successively
   """
     
-  def addStep(self, step):
-    """A step could be a URL, Form or ItemSelector"""
+  def add_step(self, step):
+    """A step could be a URL, Form or MainPage"""
     self.append(step)
     return self
     
@@ -40,32 +40,36 @@ class FormElemInfo(object):
   
   def __init__(self, elemName, elemValue, elemType=INPUT_TEXT):
     self.name = elemName
-    self._value = elemValue
+    self.value = elemValue
     self.type = elemType
     
   def __str__(self):
-    return "<FormElemInfo name=%s - _value=%s - type=%s>" % (self.name, self._value, 
+    return "<FormElemInfo name=%s - _value=%s - type=%s>" % (self.name, self.value, 
                 "text-input" if self.type == self.INPUT_TEXT else "select-input")
   
 class Form(object):
   
-  def __init__(self, formUrl, formData={}):
+  def __init__(self, formUrl, formData=[]):
+    """
+    formData -- An iterable of FormElemInfo objects
+    """
     self.url = formUrl
     self.data = formData #a list of FormElemInfo objects
     
-  def addField(self, fieldName, fieldValue):
+  def add_field(self, fieldName, fieldValue):
     self.data.setdefault(fieldName, fieldValue)
     
   def __str__(self):
     return "<Form: {0}>".format(self.url)
+
   
 class MainPage(object):
   """This is the final destination of the spider and the reason for the crawling process"""
   def __init__(self, itemPageSelector=None, itemSelector=None, similarPagesSelector=None, similarPagesXpathRestrict=None):
     """
-    itemPageSelector -- a FieldSelector object
+    itemPageSelector -- a UrlSelector
     itemSelector -- an ItemSelector object
-    similarPagesSelector -- regex string that matches nav urls that get more item pages
+    similarPagesSelector -- a UrlSelector
     similarPagesXpathRestrict -- xpath selector string
     """
     self.item_page_selector = itemPageSelector
@@ -74,4 +78,4 @@ class MainPage(object):
     self.similar_pages_restrict = similarPagesXpathRestrict 
     
   def __str__(self):
-    return "<MainPage: {0}>".format(self)
+    return "<MainPage: at %d>".format(id(self))

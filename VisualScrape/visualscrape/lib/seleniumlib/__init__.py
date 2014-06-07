@@ -1,4 +1,3 @@
-from .selenium_crawl import SeleniumCrawler
 import logging
 # setup selenium logger
 log = logging.getLogger(__name__)

@@ -3,11 +3,14 @@ Created on May 27, 2014
 @author: Mohammed Hamdy
 '''
 from selenium import webdriver
-from selenium.webdriver.support.ui import Select
-from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from multiprocessing import Process
 from visualscrape.lib.path import URL, Form, FormElemInfo, MainPage
 from visualscrape.lib.seleniumlib.handler import SeleniumDataHandler
+from visualscrape.lib.seleniumlib import log
 from visualscrape.lib.signal import *
 import sys
 
@@ -78,6 +81,14 @@ class SeleniumCrawler(object):
         elif elem_info.type == FormElemInfo.INPUT_SELECT:
           elem = Select(elem)
           elem.select_by_visible_text(elem_info._value)
+      elem.submit()
+      # wait for anything on the screen :)
+      try: 
+        WebDriverWait(self.nav_browser, 30).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+      except TimeoutException:
+        log.error("Scraping timed out after submitting: %s ... exiting" % form_url)
+        self._finishoff()
+        sys.exit(1)
   
   def _crawl_current_nav(self):
     """Scrape all items on the current items page"""

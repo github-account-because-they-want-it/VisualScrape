@@ -112,3 +112,25 @@ and return it to the browser.
 Ok, that's good for link selectors.
 We've got also the text ones. And now the converter should take the selector, and
 actually return the required text.
+--------------------------------------------------------------------------------------
+Look, boss. Using browser.get() on some links will only send you to the same page again.
+So, it's obvious, you'll need to associate actions with elements. Or, take the PROBABLY safer
+route, and return elements that will be clicked instead of urls that are visited.
+And not just this...
+There are now clickable divs!. And visible elements that are claimed invisible by Selenium
+and thus cannot be clicked.
+So I've used the scrapy link extractor to get me some links to visit. That was great, but it won't 
+work for clickable divs.
+Ok. So, basically now, I need a new way to extract "Item Links" and another way
+to indicate what to do with the link. Click it or browser.get it's url.
+Ok. So what I know now is 2 kinds of links. Those that should be clicked and waited
+and those kind ones with href that can be followed.
+So probably I should ignore link extractors for selenium. Selenium will be launched for
+js-heavy sites, which mostly consider the href attribute old-fashioned.
+Ok. So I think I should consider both straightforward href and clickables (spans, divs..)
+in my account.
+I can still use the link extractor with hrefs and mouse clicks and waits for the others. ENOUGH.
+Finally, Use selectors for both item keys and item values. This will be a guard
+against missing rows, especially when working with mongodb, this will be a boon.
+And now I need to handle link extraction. As I said, 2 kinds of links. And 2 kinds of extractors.
+A regexp extractor and a "selector" extractor. The selector extractor is just a FieldSelector.
