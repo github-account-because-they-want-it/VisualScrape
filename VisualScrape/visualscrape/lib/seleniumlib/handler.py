@@ -27,7 +27,7 @@ class SeleniumDataHandler(object):
   def item_pages(self):
     main_page = self.path[-1]
     item_page_selector = main_page.item_page_selector
-    return self._get_links_from_selector(item_page_selector, restrict=None), item_page_selector.action
+    return self._get_links_from_selector(item_page_selector, restrict=None, unique=False), item_page_selector.action
     
   def favicon_item(self):
     favicon_item = FaviconItem()
@@ -95,18 +95,7 @@ class SeleniumDataHandler(object):
     if similar_pages_selector and isinstance(similar_pages_selector, UrlSelector):
       action = similar_pages_selector.action
       restrict = main_page.similar_pages_restrict
-      nav_links = self._get_links_from_selector(similar_pages_selector, restrict)
-      # collect new links and their unique attributes
-      if similar_pages_selector.unique_attr == UrlSelector.UNIQUE_HREF:
-        new_links = [link.url for link in nav_links if link.url not in self.navigation_extracted]
-        uniq_attrs = new_links
-      elif similar_pages_selector.unique_attr == UrlSelector.UNIQUE_TEXT:
-        new_links = [link for link in nav_links if link.text not in self.navigation_extracted]
-        uniq_attrs = [link.text for link in new_links]
-      elif similar_pages_selector.unique_attr == UrlSelector.UNIQUE_ONCLICK:
-        new_links = [link for link in nav_links if link.get_attribute("onCLick") not in self.navigation_extracted]
-        uniq_attrs = [link.get_attribute("onClick") for link in new_links]
-    self.navigation_extracted.extend(uniq_attrs)
+      new_links = self._get_links_from_selector(similar_pages_selector, restrict, unique=True)
     # append the current browser url to the visited nav and don't send it to the browser
     if not self.nav_browser.current_url in self.navigation_extracted:
       self.navigation_extracted.append(self.nav_browser.current_url)
@@ -136,13 +125,15 @@ class SeleniumDataHandler(object):
     save_folder = os.path.join(save_folder, "selenium_images")
     return save_folder
   
-  def _get_links_from_selector(self, selector, restrict=None):
-    """Uses the nav_browser. Wanna pass another?"""
+  def _get_links_from_selector(self, selector, restrict=None, unique=False):
+    """Uses the nav_browser. Wanna pass another?
+       Returns href strings or selenium webdriver elements, according to selector type"""
     if selector.type == FieldSelector.REGEX:
-        response = TextResponse(self.nav_browser.current_url, body=self.nav_browser.page_source, encoding="utf-8")
-        extractor = SgmlLinkExtractor(allow=selector,
-                                    restrict_xpaths=restrict if restrict else ())
-        links = extractor.extract_links(response)
+      """The current standing: The fucking variation between selector types and unique attributes"""
+      response = TextResponse(self.nav_browser.current_url, body=self.nav_browser.page_source, encoding="utf-8")
+      extractor = SgmlLinkExtractor(allow=selector,
+                                  restrict_xpaths=restrict if restrict else ())
+      links = extractor.extract_links(response)
     elif selector.type == FieldSelector.CSS or selector.type == FieldSelector.XPATH:
       # these kinds of links may need conversion to be suitable for selenium methods
       selenium_selector = self._convert_selector(selector)
@@ -153,5 +144,22 @@ class SeleniumDataHandler(object):
       if selector.action == UrlSelector.ACTION_VISIT:
         # get the hrefs from the links
         links = [link.get_attribute("href") for link in links]
-    
-    return links
+    if unique: 
+      new_links = self._get_unique_links_from_selector(selector, links)
+      return new_links
+    else: return links
+  
+  def _get_unique_links_from_selector(self, selector, links):
+    """Uses the elements unique attribute together with self.navigation_extracted
+       to get new links"""
+    if selector.unique_attr == UrlSelector.UNIQUE_HREF:
+        new_links = [link.url for link in links if link.url not in self.navigation_extracted]
+        uniq_attrs = new_links
+    elif selector.unique_attr == UrlSelector.UNIQUE_TEXT:
+      new_links = [link for link in links if link.text not in self.navigation_extracted]
+      uniq_attrs = [link.text for link in new_links]
+    elif selector.unique_attr == UrlSelector.UNIQUE_ONCLICK:
+      new_links = [link for link in links if link.get_attribute("onCLick") not in self.navigation_extracted]
+      uniq_attrs = [link.get_attribute("onClick") for link in new_links]
+    self.navigation_extracted.extend(uniq_attrs)
+    return new_links

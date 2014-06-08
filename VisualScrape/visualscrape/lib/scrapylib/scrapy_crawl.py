@@ -30,12 +30,12 @@ class ScrapyCrawler(CrawlSpider):
     self.path_index = 0
     self.favicon_required = kwargs.get("downloadFavicon", True) #the favicon for the scraped site will be added to the first item
     self.event_handler = kwargs.get("eventHandler", None)
-    self.event_handler.set_spider(self)
+    if self.event_handler: self.event_handler.set_spider(self)
     self.favicon_item = None
   
   def start_requests(self):
     #this might not work as per docs if it returns items. see Spiders page
-    self.event_handler.emit(SpiderStarted(self.id))
+    if self.event_handler: self.event_handler.emit(SpiderStarted(self.id))
     start_path = self.path[0]
     if self.favicon_required: #the first item contains only the favicon
       #obtain the favicon url
@@ -106,7 +106,7 @@ class ScrapyCrawler(CrawlSpider):
           item_loader.add_xpath(key, value_selector)
     item_loader.add_value("id", self.id)
     item = item_loader.load_item()
-    self.event_handler.emit(ItemScraped(), item=item)
+    if self.event_handler: self.event_handler.emit(ItemScraped(), item=item)
     yield item
     
   def _take_step(self):
@@ -165,7 +165,8 @@ class ScrapyManager(object):
     self._crawl_process = Process(target=self.run_spiders, args=())
     
   def start_all(self):
-    self._crawl_process.start()
+    #self._crawl_process.start()
+    self.run_spiders()
     
   def run_spiders(self):
     """Currently, all the spiders are run within the same process"""
@@ -185,6 +186,6 @@ class ScrapyManager(object):
     
   def spider_closed(self, spider):
     self.closed_spiders += 1
-    spider.event_handler.emit(SpiderClosed(spider.id))
+    if spider.event_handler: spider.event_handler.emit(SpiderClosed(spider.id))
     if self.closed_spiders == len(self.spiders_info):
       reactor.stop()

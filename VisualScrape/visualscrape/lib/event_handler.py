@@ -8,7 +8,7 @@ from visualscrape.lib.signal import *
 from visualscrape.lib.scrapylib.scrapy_crawl import ScrapyCrawler
 
 class EventHandler(object):
-  
+  """Currently it supports only one handler"""
   def __init__(self):
     self.signals_to_handlers_map = {}
     self.spider = None # needed for the pipeline and also to skip the pipeline for scrapy spiders
@@ -37,5 +37,8 @@ class EventHandler(object):
       if self.run_pipeline:
         item = self.pipeline_handler.run_pipeline(kwargs.get("item"))
       else: item = kwargs.get("item") 
-      if item: self.data_queue.put(item)
+      if item: 
+        # convert the item to a dictionary so python can serialize it and send it along the queue. This might cause future problems though
+        item = item.fields # I think...
+        self.data_queue.put(item)
     else: self.event_queue.put(signal)

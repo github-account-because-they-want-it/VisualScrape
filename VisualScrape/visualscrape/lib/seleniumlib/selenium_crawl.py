@@ -23,20 +23,20 @@ class SeleniumCrawler(object):
     self.name = name
     self.favicon_required = kwargs.get("downloadFavicon", True)
     self.event_handler = kwargs.get("eventHandler", None)
-    self.event_handler.set_spider(self)
+    if self.event_handler: self.event_handler.set_spider(self)
     self.data_handler = None
     
   def start(self):
     """Manages the crawling process"""
     self._prepare_browsers()
-    self.event_handler.emit(SpiderStarted(self.id))
+    if self.event_handler: self.event_handler.emit(SpiderStarted(self.id))
     for step in self.path:
       if isinstance(step, MainPage):
         break
       self._take_step(step)
     if self.favicon_required:
       favicon_item = self.data_handler.favicon_item() #send it to the item-scraped handler
-      self.event_handler.emit(ItemScraped(), item=favicon_item)
+      if self.event_handler: self.event_handler.emit(ItemScraped(), item=favicon_item)
     self._crawl_current_nav()
     more_nav, action = self.data_handler.more_navigation_pages()
     while more_nav:
@@ -54,7 +54,7 @@ class SeleniumCrawler(object):
     self.nav_browser.quit()
     self.item_browser.quit()
     self._display.stop() if self._display else None
-    self.event_handler.emit(SpiderClosed(self.id))
+    if self.event_handler: self.event_handler.emit(SpiderClosed(self.id))
     
   def _prepare_browsers(self):
     self.nav_browser = webdriver.Firefox()
@@ -100,7 +100,7 @@ class SeleniumCrawler(object):
         item_page.click()
         self._wait(self.item_browser)
       item = self.data_handler.next_item()
-      self.event_handler.emit(ItemScraped(), item=item)
+      if self.data_handler: self.event_handler.emit(ItemScraped(), item=item)
       
   def _wait(self, browser, elem="body"):
     try: 
@@ -128,6 +128,6 @@ class SeleniumManager(object):
       
   def start_all(self):
     for crawler in self.crawlers: 
-      crawl_process = Process(target=crawler.start, args=())
-      crawl_process.start()
-      
+      #crawl_process = Process(target=crawler.start, args=())
+      #crawl_process.start()
+      crawler.start()

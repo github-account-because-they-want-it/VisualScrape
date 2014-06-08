@@ -11,7 +11,8 @@ def InterestItem(nameList):
   nameList.extend(["id", "image_urls", "images"]) 
   # different from the docs. But it works ;). Hail the debugger!
   return type("InterestItem", (DictItem,), {"fields":{field_name:Field() for field_name in nameList}})() #instantiate
-    
+        
+
 class FaviconItem(Item):
   id = Field()
   image_urls = Field()
