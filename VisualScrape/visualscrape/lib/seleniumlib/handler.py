@@ -6,11 +6,12 @@ Created on Jun 4, 2014
 from scrapy.http import TextResponse
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import Selector
-import os, urlparse
+import os, urlparse, tempfile, uuid, sys
 from visualscrape.lib.scrapylib.itemloader import DefaultItemLoader
 from visualscrape.lib.selector import FieldSelector, UrlSelector, ImageSelector
 from visualscrape.lib.item import InterestItem, FaviconItem
 from visualscrape.lib.util import download_image
+from visualscrape.lib.path import URL
 from visualscrape.config import settings
 
 class SeleniumDataHandler(object):
@@ -35,7 +36,7 @@ class SeleniumDataHandler(object):
     parsed_home = urlparse.urlparse(self.nav_browser.current_url)
     favicon_url = urlparse.urljoin(parsed_home.scheme + "://" + parsed_home.netloc, "favicon.ico")
     downloaded_path = download_image(favicon_url, self._get_image_save_path())
-    favicon_item["image_urls"] = [{"path": downloaded_path}]
+    favicon_item["images"] = [{"path": downloaded_path, "url":favicon_url}]
     return favicon_item
     
   def next_item(self):
@@ -48,15 +49,16 @@ class SeleniumDataHandler(object):
     for key_value_selector in item_selector:
       # keys can be either strings or selectors
       key_selector = key_value_selector.key_selector
-      if isinstance(key_selector, (str, unicode)): key = key_selector
-      else: #key_selector is a FieldSelector, use it to get the key from the response
+      if isinstance(key_selector, FieldSelector):
         sel = Selector(response)
         if key_selector.type == FieldSelector.XPATH:
           key = sel.xpath(key_selector).extract()
         elif key_selector.type == FieldSelector.CSS:
-          key = self.css(key_selector).extract()
+          key = sel.css(key_selector).extract()
         if key: key = key[0]
         else: key = "Invalid_Key_Selector" #this may pack in all values with invalid keys with this key.
+      else: #key_selector is a FieldSelector, use it to get the key from the response
+        key = key_selector
       item_info["keys"].append(key)
       value_selector = key_value_selector.value_selector
       item_info["values"].append(value_selector)
@@ -128,33 +130,49 @@ class SeleniumDataHandler(object):
   def _get_links_from_selector(self, selector, restrict=None, unique=False):
     """Uses the nav_browser. Wanna pass another?
        Returns href strings or selenium webdriver elements, according to selector type"""
-    if selector.type == FieldSelector.REGEX:
-      """The current standing: The fucking variation between selector types and unique attributes"""
+    if selector.action == UrlSelector.ACTION_VISIT:
+      #use scrapy facilities to extract your hrefs. Also, the visit action implies that hrefs are unique
       response = TextResponse(self.nav_browser.current_url, body=self.nav_browser.page_source, encoding="utf-8")
-      extractor = SgmlLinkExtractor(allow=selector,
-                                  restrict_xpaths=restrict if restrict else ())
-      links = extractor.extract_links(response)
-    elif selector.type == FieldSelector.CSS or selector.type == FieldSelector.XPATH:
-      # these kinds of links may need conversion to be suitable for selenium methods
-      selenium_selector = self._convert_selector(selector)
-      if selector.type == FieldSelector.XPATH:
-        links = self.nav_browser.find_elements_by_xpath(selenium_selector)
+      if selector.type == FieldSelector.REGEX:
+        extractor = SgmlLinkExtractor(allow=selector,
+                                    restrict_xpaths=restrict if restrict else ())
+        links = extractor.extract_links(response)
+        links = [link.url for link in links]
+      elif selector.type == FieldSelector.CSS or selector.type == FieldSelector.XPATH:
+        sel = Selector(response)
+        if selector.type == FieldSelector.CSS:
+          if not "::href" in selector: selector = selector + "::attr(href)"
+          links = sel.css(selector).extract()
+        elif selector.type == FieldSelector.XPATH:
+          if not "@href" in selector: selector = selector + "@href"
+          links = sel.xpath(selector).extract()
+        # after all, canonicalize, because css and xpath are not canoned automatically like sgml...
+        links = [URL(link).canonicalize(self.nav_browser.current_url) for link in links]
+      if unique:
+        new_links = [link for link in links if link not in self.navigation_extracted]
+        self.navigation_extracted.extend(new_links)
+        return new_links
+      else: return links
+    elif selector.action == UrlSelector.ACTION_CLICK:
+      # now you have to operate on web elements so that the browser can click them. 
+      # Probably because of the links having js attached
+      if selector.type == FieldSelector.REGEX:
+        pass # no regex links for selenium for now
       elif selector.type == FieldSelector.CSS:
-        links = self.nav_browser.find_elements_by_css_selector(selenium_selector)
-      if selector.action == UrlSelector.ACTION_VISIT:
-        # get the hrefs from the links
-        links = [link.get_attribute("href") for link in links]
-    if unique: 
-      new_links = self._get_unique_links_from_selector(selector, links)
-      return new_links
-    else: return links
-  
-  def _get_unique_links_from_selector(self, selector, links):
+        links = self.nav_browser.find_elements_by_css_selector(selector)
+      elif selector.type == FieldSelector.XPATH:
+        links = self.nav_browser.find_elements_by_xpath(selector)
+      if unique:
+        links = self._filter_unique_and_save(selector, links)
+      return links
+      
+  def _filter_unique_and_save(self, selector, links):
     """Uses the elements unique attribute together with self.navigation_extracted
-       to get new links"""
+       to get new links
+       links : must be selenium WebElements"""
     if selector.unique_attr == UrlSelector.UNIQUE_HREF:
-        new_links = [link.url for link in links if link.url not in self.navigation_extracted]
-        uniq_attrs = new_links
+        new_links = [link for link in links if link.get_attribute("href") not in self.navigation_extracted]
+        uniq_attrs = [link.get_attribute("href") for link in new_links]
     elif selector.unique_attr == UrlSelector.UNIQUE_TEXT:
       new_links = [link for link in links if link.text not in self.navigation_extracted]
       uniq_attrs = [link.text for link in new_links]
@@ -163,3 +181,9 @@ class SeleniumDataHandler(object):
       uniq_attrs = [link.get_attribute("onClick") for link in new_links]
     self.navigation_extracted.extend(uniq_attrs)
     return new_links
+  
+  def make_profile_dir(self):
+    """Create a profile folder with a prefix and randomized name part. The bug is within selenium.
+    Not mine. So this function won't work."""
+    if sys.platform.startswith("win32"):
+      pass

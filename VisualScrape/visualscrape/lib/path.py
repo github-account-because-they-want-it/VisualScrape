@@ -23,10 +23,15 @@ class SpiderPath(list):
     
 class URL(str):
   
+  def __new__(cls, url):
+    if isinstance(url, unicode):
+      url = url.encode()
+    return str.__new__(URL, url)
+  
   def canonicalize(self, parentURL):
     parsed_self = urlparse.urlparse(self)
     if parsed_self.scheme:
-      return self[:] #string copy?
+      return self 
     else:
       parsed_parent = urlparse.urlparse(parentURL)
       return urlparse.urljoin(parsed_parent.scheme + "://" + parsed_parent.netloc, self)

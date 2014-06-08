@@ -16,14 +16,19 @@ ITEM_PIPELINES = {'scrapy.contrib.pipeline.images.ImagesPipeline': 1,
 
 IMAGES_STORE = "D:/scraped_images" #relative to the project directory?
 
-SCRAPER_CLASSES = {#"visualscrape.lib.scrapylib.ScrapyCrawler" : 1,
-                   "visualscrape.lib.seleniumlib.selenium_crawl.SeleniumCrawler" : 2}
+SCRAPER_CLASSES = {"visualscrape.lib.scrapylib.ScrapyCrawler" : 1}
+                   #"visualscrape.lib.seleniumlib.selenium_crawl.SeleniumCrawler" : 2}
 
 ITEM_LOADER = "visualscrape.lib.scrapylib.itemloader.DefaultItemLoader"
 
-DOWNLOAD_FAVICON = True
+DOWNLOAD_FAVICON = False
 
 FEED_FORMAT = "json"
 FEED_URI = "file:///C:/Users/Tickler/Desktop/example.json"
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0"
+
+#TODO: add the PREFERRED_CRAWLER setting
+SITE_PARAMS = {"http://www.machinerytrader.com/":{"REQUEST_DELAY":3, 
+              #The cookies enabled settings applies actually per-start-url, not per-site
+                                                  "COOKIES_ENABLED": True}} 

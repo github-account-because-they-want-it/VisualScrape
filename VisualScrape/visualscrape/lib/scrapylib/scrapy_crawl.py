@@ -11,6 +11,7 @@ from scrapy import signals
 from multiprocessing import Process
 import urlparse
 from visualscrape.lib.path import URL, Form
+from visualscrape.config import settings
 from visualscrape.lib.item import InterestItem, FaviconItem
 from visualscrape.lib.scrapylib.itemloader import DefaultItemLoader
 from visualscrape.lib.selector import FieldSelector, ImageSelector
@@ -78,15 +79,16 @@ class ScrapyCrawler(CrawlSpider):
     for key_value_selector in item_selector:
       # keys can be either strings or selectors
       key_selector = key_value_selector.key_selector
-      if isinstance(key_selector, (str, unicode)): key = key_selector
-      else: #key_selector is a FieldSelector, use it to get the key from the response
+      if isinstance(key_selector, FieldSelector):
         sel = Selector(response)
         if key_selector.type == FieldSelector.XPATH:
           key = sel.xpath(key_selector).extract()
         elif key_selector.type == FieldSelector.CSS:
-          key = self.css(key_selector).extract()
+          key = sel.css(key_selector).extract()
         if key: key = key[0]
         else: key = "Invalid_Key_Selector" #this may pack in all values with invalid keys with this key.
+      else: #key_selector is a FieldSelector, use it to get the key from the response
+        key = key_selector
       item_info["keys"].append(key)
       value_selector = key_value_selector.value_selector
       item_info["values"].append(value_selector)
@@ -173,9 +175,9 @@ class ScrapyManager(object):
     log.start(loglevel=log.DEBUG)
     for (id, sp_info) in enumerate(self.spiders_info):
       spider = ScrapyCrawler(sp_info.spider_path[:], id, sp_info.spider_name, 
-                             eventHandler=sp_info.event_handler)
-      settings = get_project_settings()
-      crawler = Crawler(settings)
+                             eventHandler=sp_info.event_handler, downloadFavicon=settings.DOWNLOAD_FAVICON.value())
+      proj_settings = get_project_settings()
+      crawler = Crawler(proj_settings)
       self.crawlers.append(crawler)
       # connect each spider's closed signal to self. When all spiders done, stop the reactor
       crawler.signals.connect(self.spider_closed, signal=signals.spider_closed) # i do not really now if that is appended or overwritten

@@ -39,6 +39,6 @@ class EventHandler(object):
       else: item = kwargs.get("item") 
       if item: 
         # convert the item to a dictionary so python can serialize it and send it along the queue. This might cause future problems though
-        item = item.fields # I think...
+        item = dict(item) # or _values. but that's implementation
         self.data_queue.put(item)
     else: self.event_queue.put(signal)

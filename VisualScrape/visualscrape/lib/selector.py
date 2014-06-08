@@ -32,7 +32,7 @@ class FieldSelector(unicode):
     self.type = type
     
   def __unicode__(self):
-    return "<FieldSelector selector=%s, type=%s>".format(
+    return "<FieldSelector selector={0}, type={0}>".format(
             super(FieldSelector, self).__str__().decode("utf-8"), 
             "xpath" if self.type == self.XPATH else "css")
     

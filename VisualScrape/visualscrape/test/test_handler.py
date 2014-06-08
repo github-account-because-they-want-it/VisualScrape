@@ -21,10 +21,10 @@ class Handler(object):
   def check_queues(self):
     finished = False
     while not self.event_queue.empty():
-      event = self.event_queue.get(False)
+      event = self.event_queue.get(block=False, timeout=0)
       if isinstance(event, SpiderClosed):
         finished = True
-      print "Event Queue: %s" % self.event_queue.get(False)
+      print "Event Queue: %s" % event
     while not self.data_queue.empty():
-      print "Data Queue: %s" % self.data_queue.get(False)
-    if not finished: Timer(15, self.check_queues)
+      print "Data Queue: %s" % self.data_queue.get(block=False, timeout=0)
+    if not finished: Timer(15, self.check_queues).start()
