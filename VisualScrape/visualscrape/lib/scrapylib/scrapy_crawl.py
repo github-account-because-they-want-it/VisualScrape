@@ -13,7 +13,6 @@ import urlparse
 from visualscrape.lib.path import URL, Form
 from visualscrape.config import settings
 from visualscrape.lib.item import InterestItem, FaviconItem
-from visualscrape.lib.scrapylib.itemloader import DefaultItemLoader
 from visualscrape.lib.selector import FieldSelector, ImageSelector
 from visualscrape.lib.signal import *
 
@@ -30,6 +29,7 @@ class ScrapyCrawler(CrawlSpider):
     self.id = spiderID # this is a public property
     self.path_index = 0
     self.favicon_required = kwargs.get("downloadFavicon", True) #the favicon for the scraped site will be added to the first item
+    self.item_loader = kwargs.get("itemLoader")
     self.event_handler = kwargs.get("eventHandler", None)
     if self.event_handler: self.event_handler.set_spider(self)
     self.favicon_item = None
@@ -94,7 +94,7 @@ class ScrapyCrawler(CrawlSpider):
       item_info["values"].append(value_selector)
     # dynamically create the item from collected keys. The item must be created before the item loader
     item = InterestItem(item_info["keys"])
-    item_loader = DefaultItemLoader(item, response=response, response_ctx=response) #pass the response to i/o processors
+    item_loader = self.item_loader(item, response=response, response_ctx=response) #pass the response to i/o processors
     for (key, value_selector) in zip(item_info["keys"], item_info["values"]):
       if value_selector.type == FieldSelector.CSS:
         if isinstance(value_selector, ImageSelector):
@@ -175,7 +175,8 @@ class ScrapyManager(object):
     log.start(loglevel=log.DEBUG)
     for (id, sp_info) in enumerate(self.spiders_info):
       spider = ScrapyCrawler(sp_info.spider_path[:], id, sp_info.spider_name, 
-                             eventHandler=sp_info.event_handler, downloadFavicon=settings.DOWNLOAD_FAVICON.value())
+                             eventHandler=sp_info.event_handler, downloadFavicon=settings.DOWNLOAD_FAVICON.value(),
+                             itemLoader=settings.get_item_loader_for(sp_info.spider_path[0]))
       proj_settings = get_project_settings()
       crawler = Crawler(proj_settings)
       self.crawlers.append(crawler)

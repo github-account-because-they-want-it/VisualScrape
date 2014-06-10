@@ -7,7 +7,6 @@ from scrapy.http import TextResponse
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import Selector
 import os, urlparse, tempfile, uuid, sys
-from visualscrape.lib.scrapylib.itemloader import DefaultItemLoader
 from visualscrape.lib.selector import FieldSelector, UrlSelector, ImageSelector
 from visualscrape.lib.item import InterestItem, FaviconItem
 from visualscrape.lib.util import download_image
@@ -18,11 +17,12 @@ class SeleniumDataHandler(object):
   """Takes the browser instances and the spider path. When called at the right times,
      returns items, item pages and navigation pages"""
   
-  def __init__(self, navBrowser, itemBrowser, spiderPath, spiderId):
+  def __init__(self, navBrowser, itemBrowser, spiderPath, spiderId, itemLoader):
     self.nav_browser = navBrowser
     self.item_browser = itemBrowser
     self.path = spiderPath
     self.spider_id = spiderId
+    self.item_loader = itemLoader # used to load scraped items
     self.navigation_extracted = [] #keep track of extracted navigation pages and don't return duplicates
     
   def item_pages(self):
@@ -64,7 +64,7 @@ class SeleniumDataHandler(object):
       item_info["values"].append(value_selector)
     # dynamically create the item from collected keys. The item must be created before the item loader
     item = InterestItem(item_info["keys"])
-    item_loader = DefaultItemLoader(item, response=response, response_ctx=response) #pass the response to i/o processors
+    item_loader = self.item_loader(item, response=response, response_ctx=response) #pass the response to i/o processors
     for (key, value_selector) in zip(item_info["keys"], item_info["values"]):
       if value_selector.type == FieldSelector.CSS:
         if isinstance(value_selector, ImageSelector):

@@ -13,8 +13,9 @@ from visualscrape.lib.path import URL, Form, FormElemInfo, MainPage
 from visualscrape.lib.seleniumlib.handler import SeleniumDataHandler
 from visualscrape.lib.seleniumlib import log
 from visualscrape.lib.signal import *
-import sys, time
+import sys, time, traceback
 from visualscrape.lib.selector import UrlSelector
+
 
 class SeleniumCrawler(object):
   
@@ -23,6 +24,7 @@ class SeleniumCrawler(object):
     self.id = spiderID
     self.name = name
     self.favicon_required = kwargs.get("downloadFavicon", True)
+    self.item_loader = kwargs.get("itemLoader")
     self.event_handler = kwargs.get("eventHandler", None)
     if self.event_handler: self.event_handler.set_spider(self)
     self.data_handler = None
@@ -54,7 +56,9 @@ class SeleniumCrawler(object):
     except KeyboardInterrupt:
       log.debug("Interrupted. Exiting...")
     except Exception as ex:
-      log.error("{0} failed with an error : {1} . Exiting...".format(self.name, ex))
+      log.error("{0} failed with an error : \n\t".format(self.name))
+      traceback.print_exc()
+      log.error("Exiting")
     finally:
       self._finishoff()
   
@@ -67,12 +71,13 @@ class SeleniumCrawler(object):
   def _prepare_browsers(self):
     # check settings for our start url
     profile=None
-    if not settings.SITE_PARAMS.by(self.path[0])["COOKIES_ENABLED"]:
+    if settings.SITE_PARAMS.by(self.path[0]).get("COOKIES_ENABLED", None) is False:
       profile = webdriver.FirefoxProfile(profile_directory=r"C:\Users\Tickler\AppData\Local\Temp\prof_dir")
       profile.set_preference("network.cookie.cookieBehavior", 1)
     self.nav_browser = webdriver.Firefox(firefox_profile=profile)
     self.item_browser = webdriver.Firefox(firefox_profile=profile)
-    self.data_handler = SeleniumDataHandler(self.nav_browser, self.item_browser, self.path, self.id)
+    self.data_handler = SeleniumDataHandler(self.nav_browser, self.item_browser, self.path, 
+                                            self.id, self.item_loader)
     #try to run headless on linux
     if sys.platform.startswith("linux"):
       try:
@@ -113,7 +118,7 @@ class SeleniumCrawler(object):
         item_page.click()
         self._wait(self.item_browser)
       item = self.data_handler.next_item()
-      time.sleep(settings.SITE_PARAMS.by(item_page)["REQUEST_DELAY"]) # get the delay from settings and apply it
+      time.sleep(settings.SITE_PARAMS.by(item_page).get("REQUEST_DELAY", 0)) # get the delay from settings and apply it
       if self.data_handler: self.event_handler.emit(ItemScraped(), item=item)
       
   def _wait(self, browser, elem="body"):
@@ -138,11 +143,12 @@ class SeleniumManager(object):
       # start ids at 100 for selenium to make it's ids distinct from scrapy. 
       # TODO: read the start id from settings
       crawler = SeleniumCrawler(sp_info.spider_path, id+100, sp_info.spider_name, 
-                                eventHandler=sp_info.event_handler, downloadFavicon=settings.DOWNLOAD_FAVICON.value())
+                                eventHandler=sp_info.event_handler, downloadFavicon=settings.DOWNLOAD_FAVICON.value(),
+                                itemLoader=settings.get_item_loader_for(sp_info.spider_path[0]))
       self.crawlers.append(crawler)
       
   def start_all(self):
     for crawler in self.crawlers: 
-      crawl_process = Process(target=crawler.start, args=())
-      crawl_process.start()
-      #crawler.start()
+      #crawl_process = Process(target=crawler.start, args=())
+      #crawl_process.start()
+      crawler.start()

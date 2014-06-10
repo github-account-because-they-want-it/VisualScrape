@@ -24,17 +24,20 @@ class CrawlEngine(object):
     
   def start(self):
     """
-    Get the spider class that has the turn to run, get it's manager and
-    let the manager handle the rest 
+    Group required spider(s) info by their preferred scraper, get each scraper's 
+    manager and let the manager handle the rest 
     """
-    spider_classes = settings.SCRAPER_CLASSES.load_components()
-    Spider = spider_classes[0]
-    #instantiate it
-    #now you could do your spider switch shit here
-    #self.event_handler.emit()
-    SpiderManager = Spider.get_manager()
-    sm = SpiderManager(self.spiders_info)
-    sm.start_all()
+    managers_to_spinfo_map = {}
+    for sp_info in self.spiders_info:
+      spider_start_url = sp_info.get_start_url()
+      scraper_cls = settings.get_preferred_scraper_for(spider_start_url)
+      spider_manager = scraper_cls.get_manager()
+      managers_to_spinfo_map.setdefault(spider_manager, [])
+      managers_to_spinfo_map[spider_manager].append(sp_info)
+    
+    for manager, sp_infos in managers_to_spinfo_map.items():
+      manager_inst = manager(sp_infos)
+      manager_inst.start_all()
     
   def register_handlers(self, eventHandler=None, dataHandler=None):
     """The handlers are both functions that accept a single argument, a Queue.
@@ -56,6 +59,9 @@ class SpiderInfo(object):
     
   def set_path(self, path):
     self.spider_path = path
+    
+  def get_start_url(self):
+    return self.spider_path[0]
     
   def set_event_handler(self, eventHandler):
     self.event_handler = eventHandler

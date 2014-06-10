@@ -134,3 +134,31 @@ Finally, Use selectors for both item keys and item values. This will be a guard
 against missing rows, especially when working with mongodb, this will be a boon.
 And now I need to handle link extraction. As I said, 2 kinds of links. And 2 kinds of extractors.
 A regexp extractor and a "selector" extractor. The selector extractor is just a FieldSelector.
+---------------------------------------------------------------------------------------
+Maybe I'm not in the mood of coding, given my headache. There should be a component that measures
+or analyzes the output from a spider, interrupting the engine when the results are "bad".
+Though the engine has no control of the spider, it has access to the manager. That should be
+enough.
+Reasons for the switch:
+1- Identical response pages (!)
+2- Empty items (that doesn't indicate a bad spider. It denotes a probably bad selectors.
+I think the switch idea is really stupid. Any crawling process knows beforehand whether 
+or not a browser should be used.
+But I think a component could have access responses and warn when identical pages are retrived.
+Not very useful.
+So, I think the switching is bad idea. Surprise, yes, because that's the main idea behind
+the program in the first place.
+---------------------------------------------------------------------------------------
+Now that some sites require special handling for their fields, that opens space for
+2 options. Either item loaders or pipelines can be used for that. It also complicates
+the future automation process.
+Since I allow spaces into field names, and that item loaders operate by field names,
+this forces me to use dynamically created item loaders, or item loaders that customize the 
+__new__ method for the item loader. 
+---------------------------------------------------------------------------------------
+I'm being literally fucked by the settings. What should I do. Best, I want a general solution
+for nested settings.
+Let's return to out problem here. I want settings to be fault tolerant and return nice 
+defaults.
+I think the idea of a subclass for every specific setting can be good.
+ 

@@ -14,21 +14,12 @@ from urlparse import urlparse
 class SettingsReader(object):
   __metaclass__ = SingletonMeta
   """
-  Makes the _settings available for clients and controls
-  the overall access
+  Just makes the settins available through a familiar interface. i.e,
+  settings.SETTING_NAME ...
   """
   
   def __init__(self):
     pass
-    
-  def nextSetting(self, settingName):
-    """
-    Retrieves the next value of the requested setting, otherwise None, if
-    no such setting or setting is exhausted
-    """  
-    for setting in self._settings:
-      if setting.name == settingName:
-        return setting.nextValue()
       
   def __getattr__(self, attr):
     """Support reading arbitrary settings by attribute access on this object"""
@@ -36,7 +27,36 @@ class SettingsReader(object):
       return Setting(attr)
     else:
       raise ValueError("Setting undefined: <%s>" % attr)
-    
+  
+  @staticmethod
+  def get_item_loader_for(startUrl):
+    """Used by spider managers to get item loaders for spiders, because it can be spider-specific"""
+    site_params_setting = Setting("SITE_PARAMS")
+    site_params = site_params_setting.by(startUrl)
+    if site_params: 
+      loader_cls = site_params.get("ITEM_LOADER", None)
+      if loader_cls: # specific item loader?
+        return load_object(loader_cls)
+      else: return load_object(settings.ITEM_LOADER) #default item loader
+    else: return load_object(settings.ITEM_LOADER) #default item loader
+  
+  @staticmethod  
+  def get_preferred_scraper_for(startUrl):
+    """Used by the engine to get the user-defined scraper for his site"""
+    scraper_classes = settings.SCRAPER_CLASSES
+    # switch keys and values, to be able to get the class by it's number
+    switched = {value:key for (key, value) in scraper_classes.items()}
+    #now get the index of the user-defined class, if at all
+    site_params_setting = Setting("SITE_PARAMS")
+    start_url_params = site_params_setting.by(startUrl)
+    if start_url_params:
+      scraper_index = start_url_params.get("PREFERRED_SCRAPER", None)
+      if scraper_index is None: # no user-defined field, return first scraper class
+        return load_object(switched[min(switched.keys())]) 
+      else:
+        return load_object(switched[scraper_index])
+    else: # No site params for this site
+      return load_object(switched[min(switched.keys())])
 
 class Setting(object):
   """Wraps a single setting from the file. Reads the
@@ -51,7 +71,7 @@ class Setting(object):
     self.index = 0
     self._value = getattr(settingsModule, self.name)
     self._handler = SettingHandler(self.name, self._value)
-    if type(self._value) == dict or type(self._value) == list:
+    if isinstance(self._value, dict) or isinstance(self._value, list):
       self.iterable = True
       
   def value(self):
@@ -118,3 +138,4 @@ class SettingHandler(object):
       parsed_v = urlparse(url_v)
       if parsed_v.netloc == domain_in:
         return params
+    else: return {}

@@ -2,7 +2,7 @@
 Created on May 27, 2014
 @author: Mohammed Hamdy
 '''
-import httplib, urlparse, os
+import httplib, urlparse, os, sys, traceback, StringIO
 from scrapy import log
 
 class SingletonMeta(type):
@@ -54,6 +54,13 @@ def download_image(imageUrl, savePath, replace=False):
   except OSError as oe:
     log.err("Couldn't save %s :Access denied" % save_to)
   
+def get_exception_str():
+  exc_str = StringIO.StringIO()
+  tb = sys.exc_info()[2]
+  for (filename, lineno, f, code) in traceback.extract_tb(tb):
+      exc_str.write("\tLine:%d in %s.%s < %s >\n" % (lineno, filename, f, code))
+  return exc_str.getvalue()
+
 if __name__ == "__main__":
   class T:
     __metaclass__ = SingletonMeta
