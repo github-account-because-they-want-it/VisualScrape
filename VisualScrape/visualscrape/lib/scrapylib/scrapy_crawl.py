@@ -25,6 +25,7 @@ class ScrapyCrawler(CrawlSpider):
   def __init__(self, spiderPath, spiderID, name="ScrapyCrawler", *args, **kwargs):
     super(ScrapyCrawler, self).__init__()
     self.name = name
+    self.request_delay = kwargs.get("requestDelay", 1) #scrapy uses something between .5 and 1.5
     self.path = spiderPath
     self.id = spiderID # this is a public property
     self.path_index = 0
@@ -132,14 +133,18 @@ class ScrapyCrawler(CrawlSpider):
       # use rules to do manual link extraction, since scrapy seems not to do it unless the rules are a class attribute
       similar_extractor = SgmlLinkExtractor(allow=(selector,),
                          restrict_xpaths=(restrict,) if restrict else ())
-      similar_nav = [link.url for link in similar_extractor.extract_links(response)]
+      links = [link.url for link in similar_extractor.extract_links(response)]
     else:
       sel = Selector(response)
       if selector.type == FieldSelector.CSS:
-        similar_nav = sel.css(selector).extract()
+        if not "::href" in selector: selector = selector + "::attr(href)"
+        links = sel.css(selector).extract()
       elif selector.type == FieldSelector.XPATH:
-        similar_nav = sel.xpath(selector).extract()
-    return similar_nav
+        if not "@href" in selector: selector = selector + "/@href"
+        links = sel.xpath(selector).extract()
+      # canonicalize ...
+      links = [URL(link).canonicalize(response.url) for link in links]
+    return links
   
   @staticmethod      
   def get_manager():
@@ -176,7 +181,8 @@ class ScrapyManager(object):
     for (id, sp_info) in enumerate(self.spiders_info):
       spider = ScrapyCrawler(sp_info.spider_path[:], id, sp_info.spider_name, 
                              eventHandler=sp_info.event_handler, downloadFavicon=settings.DOWNLOAD_FAVICON.value(),
-                             itemLoader=settings.get_item_loader_for(sp_info.spider_path[0]))
+                             itemLoader=settings.get_item_loader_for(sp_info.spider_path[0]),
+                             requestDelay=settings.SITE_PARAMS.by(sp_info.spider_path[0]).get("REQUEST_DELAY", 1))
       proj_settings = get_project_settings()
       crawler = Crawler(proj_settings)
       self.crawlers.append(crawler)

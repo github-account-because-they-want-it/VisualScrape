@@ -161,4 +161,5 @@ for nested settings.
 Let's return to out problem here. I want settings to be fault tolerant and return nice 
 defaults.
 I think the idea of a subclass for every specific setting can be good.
- 
+---------------------------------------------------------------------------------------
+It shouldn't be that fucking hard. But changing item field names is not easy it seems.

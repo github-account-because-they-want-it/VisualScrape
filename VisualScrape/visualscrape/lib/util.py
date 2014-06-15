@@ -2,7 +2,7 @@
 Created on May 27, 2014
 @author: Mohammed Hamdy
 '''
-import httplib, urlparse, os, sys, traceback, StringIO
+import httplib, urlparse, os, sys, traceback, StringIO, csv, codecs
 from scrapy import log
 
 class SingletonMeta(type):
@@ -60,6 +60,17 @@ def get_exception_str():
   for (filename, lineno, f, code) in traceback.extract_tb(tb):
       exc_str.write("\tLine:%d in %s.%s < %s >\n" % (lineno, filename, f, code))
   return exc_str.getvalue()
+
+def save_table_to_csv(table, outfile):
+  f = open(outfile, "wb")
+  f = codecs.getwriter("utf-8")(f)
+  rows = table.find({}, {"_id":0})
+  fst_row = rows[0]
+  writer = csv.DictWriter(f, fst_row.keys(), extrasaction="ignore")
+  writer.writeheader()
+  writer.writerow(fst_row)
+  for row in rows: writer.writerow(row)
+  f.close()
 
 if __name__ == "__main__":
   class T:

@@ -144,7 +144,7 @@ class SeleniumDataHandler(object):
           if not "::href" in selector: selector = selector + "::attr(href)"
           links = sel.css(selector).extract()
         elif selector.type == FieldSelector.XPATH:
-          if not "@href" in selector: selector = selector + "@href"
+          if not "/@href" in selector: selector = selector + "/@href"
           links = sel.xpath(selector).extract()
         # after all, canonicalize, because css and xpath are not canoned automatically like sgml...
         links = [URL(link).canonicalize(self.nav_browser.current_url) for link in links]

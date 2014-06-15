@@ -5,7 +5,9 @@ Created on May 25, 2014
 '''
 
 class KeyValueSelector(object):
-  """This is the class that should be used for selection"""
+  """This is the class that should be used for selection. It helps when using FieldSelectors
+     for both item keys and values, because it'll keep the results consistent by preserving field names
+     even if some data is missing"""
   def __init__(self, key, value):
     self.key_selector = key       # can be a string or FieldSelector
     self.value_selector = value   # ditto, for more flexibility. It's a far possibility though that it's a hard string

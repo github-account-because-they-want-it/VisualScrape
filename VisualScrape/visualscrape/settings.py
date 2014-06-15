@@ -13,7 +13,8 @@ NEWSPIDER_MODULE = 'NefsakLaptops.spiders'
 #USER_AGENT = 'NefsakLaptops (+http://www.yourdomain.com)'
 ITEM_PIPELINES = {'scrapy.contrib.pipeline.images.ImagesPipeline': 1,
                   "visualscrape.lib.scrapylib.pipeline.FilterFieldsPipeline": 100,
-                  "visualscrape.lib.scrapylib.pipeline.CanonicalizeImagePathPipeline": 101}
+                  "visualscrape.lib.scrapylib.pipeline.CanonicalizeImagePathPipeline": 101,
+                  "carscraper.pipeline.CorrectMotoFieldNamesPipeline":102}
 
 IMAGES_STORE = "D:/scraped_images" #relative to the project directory?
 
@@ -37,4 +38,16 @@ SITE_PARAMS = {"http://www.machinerytrader.com/":{"REQUEST_DELAY":3,
                                                   },
                "http://www.cycletrader.com":{"PREFERRED_SCRAPER":2,
                                              "REQUEST_DELAY": 1,
-                                             "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"}}  
+                                             "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"}, # use the car item loader because it overrider takefirst on output
+               
+               "http://www.ebay.com/":{"PREFERRED_SCRAPER": 2,
+                                       "REQUEST_DELAY": 1,
+                                       "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"},
+               
+               "http://www.cars.com":{"PREFERRED_SCRAPER":1, # runs quite well with 1
+                                      "REQUEST_DELAY": 1, 
+                                      "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"},
+               
+               "http://www.autotrader.com":{"PREFERRED_SCRAPER":2, # requires click pagination
+                                            "REQUEST_DELAY":1,
+                                            "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"}}
