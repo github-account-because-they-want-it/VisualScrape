@@ -4,10 +4,12 @@ Created on Jun 14, 2014
 '''
 
 from __future__ import division
-from PySide.QtGui import QWidget, QPixmap, QPainter, QPen, QHBoxLayout
-from PySide.QtCore import Qt, QPointF, Signal
+from PySide.QtGui import (QWidget, QPixmap, QPainter, QPen, QHBoxLayout, QStyledItemDelegate,
+                          QLineEdit, QSizePolicy)
+from PySide.QtCore import Qt, QPointF, Signal, QAbstractTableModel, QSize
 from os import path
-
+import json, collections
+from visualscrape.ui.style import search_style
 
 class ImageWidget(QWidget):
   """
@@ -141,3 +143,116 @@ class OverlayContainer(QWidget):
   def leaveEvent(self, le):
     self.hide()
   
+class ScrapeModel(QAbstractTableModel):
+  """The data could be coming from a json file, database or obtained dynamically from a running spider
+     Puts the image column as the first one by default."""
+  def __init__(self, parent=None):
+    super(ScrapeModel, self).__init__(parent)
+    #read data from json
+    f = open("example.json")
+    self.json_data = json.load(f) # this is an array of dicts
+    for i, item in enumerate(self.json_data):
+      images_in_item = "images" in item.keys() #the item may not have images_in_item
+      ordered_item = collections.OrderedDict()
+      favicon_item = images_in_item and len(item.get("images")) == 1 and \
+        "favicon.ico" in item.get("images")[0].get("url")
+      # filter the favicon item if it exists. This belongs to the UI, not to the table
+      if favicon_item: self.json_data.pop(i)
+      else: # ok, not a favicon. process it's keys and sort them for display
+        keys = item.keys()
+        if images_in_item : keys.remove("images")
+        keys.sort(key=lambda key: key.lower())
+        # bring the images key to be the first
+        if images_in_item: keys = ["images"] + keys
+        for key in keys:
+          ordered_item[key] = item[key]
+        # replace data using this sorted keys
+        self.json_data[i] = ordered_item
+    # prefetch the table headers. ride some camels
+    headers = []
+    for key in keys:
+      first, rest = key[0], key[1:]
+      header = first.upper() + rest.lower()
+      headers.append(header)
+    self._headers = headers
+    
+  def rowCount(self, parent):
+    return len(self.json_data)
+  
+  def columnCount(self, parent):
+    return len(self._headers)
+      
+  def headerData(self, section, orientation, role=Qt.DisplayRole):
+    if role == Qt.DisplayRole and orientation == Qt.Orientation.Horizontal:
+      return self._headers[section]
+    
+  def data(self, index, role=Qt.DisplayRole):
+    if role == Qt.DisplayRole:
+      row = index.row(); col = index.column()
+      data_row = self.json_data[row]
+      data_key = data_row.keys()[col] #means a column name, but the original
+      data = data_row.get(data_key, '')
+      return data
+    elif role == Qt.TextAlignmentRole:
+      return Qt.AlignCenter
+    
+  def flags(self, index):
+    return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
+
+class ScrapeItemDelegate(QStyledItemDelegate):
+  """A delegate that displays a scaled image in the first column for a 
+     table view"""
+  def __init__(self, maxCellRes=(200, 200), parent=None):
+    """
+    Args:
+      maxCellRes -- if there are images in the items, it won't be painted bigger than this resolution
+    """
+    super(ScrapeItemDelegate, self).__init__(parent)
+    self.max_cell_res = maxCellRes
+    # display images and slideshows. Be as magical as you can.
+    
+  def paint(self, painter, option, index):
+    if index.column() != 0: # not the image column
+      super(ScrapeItemDelegate, self).paint(painter, option, index)
+    else:
+      images = index.data(role=Qt.DisplayRole)
+      if images:
+        # yep. Make an image appear here
+        image_data = images[0] # assuming a single image for now
+        pixmap = QPixmap(image_data.get("path"))
+        pixmap = pixmap.scaled(self.max_cell_res[0], self.max_cell_res[1], Qt.IgnoreAspectRatio)
+        cell_rect = option.rect
+        painter.drawPixmap(cell_rect.x(), cell_rect.y(), pixmap) 
+      else:
+        super(ScrapeItemDelegate, self).paint(painter, option, index)
+  
+  def sizeHint(self, option, index):
+    if index.column() != 0:
+      return super(ScrapeItemDelegate, self).sizeHint(option, index)
+    else:
+      images = index.data(role=Qt.DisplayRole)
+      if images:
+        return QSize(self.max_cell_res[0], self.max_cell_res[1])
+      else:
+        return super(ScrapeItemDelegate, self).sizeHint(option, index)
+
+class ScrapeSearchLineEdit(QLineEdit):
+  """Implements interface SearchLineEdit and handles focusing"""
+  column_query_splitter = ": "
+  
+  def __init__(self, *args, **kwargs):
+    super(ScrapeSearchLineEdit, self).__init__(*args, **kwargs)
+    self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+    self.setStyleSheet(search_style)
+    self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    self.setText("Search: ")
+    
+  def focusInEvent(self, fie):
+    if self.text() == "Search: ":
+      self.clear()
+    super(ScrapeSearchLineEdit, self).focusInEvent(fie)
+  
+  def focusOutEvent(self, foe):
+    if not self.text():
+      self.setText("Search: ")

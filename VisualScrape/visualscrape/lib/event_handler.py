@@ -8,7 +8,7 @@ from visualscrape.lib.signal import *
 from visualscrape.lib.scrapylib.scrapy_crawl import ScrapyCrawler
 
 class EventHandler(object):
-  """Currently it supports only one handler"""
+  """Currently it supports only one handler per instance of EventHandler"""
   def __init__(self):
     self.signals_to_handlers_map = {}
     self.spider = None # needed for the pipeline and also to skip the pipeline for scrapy spiders
@@ -23,6 +23,7 @@ class EventHandler(object):
     handler(self.data_queue)
     
   def set_spider(self, spider):
+    """This is called by the spiders during initialization"""
     self.spider = spider
     if isinstance(spider, ScrapyCrawler):
       self.run_pipeline = False
