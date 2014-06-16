@@ -9,10 +9,14 @@ from visualscrape.lib.scrapylib.scrapy_crawl import ScrapyCrawler
 
 class EventHandler(object):
   """Currently it supports only one handler per instance of EventHandler"""
-  def __init__(self):
+  def __init__(self, spiderInstance):
     self.signals_to_handlers_map = {}
-    self.spider = None # needed for the pipeline and also to skip the pipeline for scrapy spiders
-    self.pipeline_handler = None
+    self.spider = spiderInstance # needed for the pipeline and also to skip the pipeline for scrapy spiders
+    if isinstance(self.spider, ScrapyCrawler):
+      self.run_pipeline = False
+    else:
+      self.pipeline_handler = PipelineHandler(self.spider)
+      self.run_pipeline = True
     
   def register_event_handler(self, handler):
     self.event_queue = Queue()
@@ -21,15 +25,6 @@ class EventHandler(object):
   def register_data_handler(self, handler):
     self.data_queue = Queue()
     handler(self.data_queue)
-    
-  def set_spider(self, spider):
-    """This is called by the spiders during initialization"""
-    self.spider = spider
-    if isinstance(spider, ScrapyCrawler):
-      self.run_pipeline = False
-    else:
-      self.pipeline_handler = PipelineHandler(spider)
-      self.run_pipeline = True
     
   def emit(self, signal, **kwargs):
     """The callers are usually either the engine or the spider.
