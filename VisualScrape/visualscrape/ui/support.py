@@ -5,11 +5,14 @@ Created on Jun 14, 2014
 
 from __future__ import division
 from PySide.QtGui import (QWidget, QPixmap, QPainter, QPen, QHBoxLayout, QStyledItemDelegate,
-                          QLineEdit, QSizePolicy)
-from PySide.QtCore import Qt, QPointF, Signal, QAbstractTableModel, QSize
+                          QLineEdit, QSizePolicy, QGridLayout, QProgressBar,
+  QPushButton)
+from PySide.QtCore import Qt, QPointF, Signal, QAbstractTableModel, QSize, QTimer, Signal
 from os import path
 import json, collections
 from visualscrape.ui.style import search_style
+from visualscrape.ui.table import ScrapeDataTable
+from visualscrape.lib.signal import SpiderClosed
 
 class ImageWidget(QWidget):
   """
@@ -237,6 +240,7 @@ class ScrapeItemDelegate(QStyledItemDelegate):
       else:
         return super(ScrapeItemDelegate, self).sizeHint(option, index)
 
+
 class ScrapeSearchLineEdit(QLineEdit):
   """Implements interface SearchLineEdit and handles focusing"""
   column_query_splitter = ": "
@@ -256,3 +260,79 @@ class ScrapeSearchLineEdit(QLineEdit):
   def focusOutEvent(self, foe):
     if not self.text():
       self.setText("Search: ")
+    super(ScrapeSearchLineEdit, self).focusOutEvent(foe)
+      
+      
+class SpiderTab(QWidget):
+  """Has handlers for spider data and events. It houses the results table of the
+     spider, controls for the spider and progress indication
+     It implicitly conforms to IEventHandler interface"""
+  TIMER_CHECK_INTERVAL = 3000
+  favicon_received = Signal(str) # send the url or path to the handler, which should be the tab widget
+  search_performed = Signal(str)
+  stop_spider_signal = Signal(int)
+  
+  def __init__(self, parent=None):
+    super(SpiderTab, self).__init__(parent)
+    self._event_queue = None
+    self._data_queue = None
+    self._engine = None
+    self._favicon_received = False
+    self._spider_id = None
+    self.initInterface()
+    self._queue_check_timer = QTimer()
+    self._queue_check_timer.setInterval(self.TIMER_CHECK_INTERVAL)
+    self._queue_check_timer.timeout.connect(self._checkQueues)
+    self._queue_check_timer.start()
+    
+  def initInterface(self):
+    layout = QGridLayout()
+    self._data_table = ScrapeDataTable()
+    self.search_performed.connect(self._data_table.query)
+    self._progress_spider = QProgressBar()
+    # make it a busy indicator. you don't know when it'll finish 
+    self._progress_spider.setMinimum(0); self._progress_spider.setMaximum(0)
+    self._progress_spider.setTextVisible(False)
+    self._btn_stop_spider = QPushButton("Stop Spider [INCOMPLETE]")
+    self._btn_stop_spider.clicked.connect(self._stopSpider)
+    row = 0; col = 0;
+    layout.addWidget(self._data_table, row, col, 1, 4)
+    row += 1;
+    layout.addWidget(self._progress_spider, row, col, 1, 2)
+    col += 3
+    layout.addWidget(self._btn_stop_spider, row, col, 1, 1)
+    self.setLayout(layout)
+    
+  def set_event_queue(self, eq):
+    self._event_queue = eq
+    
+  def set_data_queue(self, dq):
+    self._data_queue = dq
+    
+  def _stopSpider(self):
+    if self._spider_id is None: # do not stop the the spider without knowing it's id
+      pass
+    else:
+      self._btn_stop_spider.setEnabled(False)
+      self.stop_spider_signal.emit(self._spider_id)
+      
+  def configure_searchlineedit(self, lineEdit):
+    self._data_table.configure_search_lineedit(lineEdit)
+    
+  def _checkQueues(self):
+    while not self._event_queue.empty():
+      event = self._event_queue.get(block=False, timeout=0)
+      if isinstance(event, SpiderClosed):
+        self._queue_check_timer.stop()
+        self._progress_spider.setValue(100)
+        self._btn_stop_spider.setEnabled(False)
+        """Do more stuff here to update the gui"""
+    while not self._data_queue.empty():
+      item = self._data_queue.get(block=False, timeout=0)
+      if not self._favicon_received:
+        favicon_data = item["images"][0]
+        self.favicon_received.emit(favicon_data["path"]) # note that icons are not guaranteed to have a path. Not everybody wants to save images
+        self._favicon_received = True
+        self._spider_id = item["id"]
+      else:
+        self._data_table.addItem()

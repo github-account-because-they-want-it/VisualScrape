@@ -13,8 +13,8 @@ NEWSPIDER_MODULE = 'NefsakLaptops.spiders'
 #USER_AGENT = 'NefsakLaptops (+http://www.yourdomain.com)'
 ITEM_PIPELINES = {'scrapy.contrib.pipeline.images.ImagesPipeline': 1,
                   "visualscrape.lib.scrapylib.pipeline.FilterFieldsPipeline": 100,
-                  "visualscrape.lib.scrapylib.pipeline.CanonicalizeImagePathPipeline": 101,
-                  "carscraper.pipeline.CorrectMotoFieldNamesPipeline":102}
+                  "visualscrape.lib.scrapylib.pipeline.CanonicalizeImagePathPipeline": 101}
+                  #"carscraper.pipeline.CorrectMotoFieldNamesPipeline":102}
 
 IMAGES_STORE = "D:/scraped_images" #relative to the project directory?
 

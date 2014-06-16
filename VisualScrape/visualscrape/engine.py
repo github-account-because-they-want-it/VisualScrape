@@ -4,14 +4,14 @@ Created on May 25, 2014
 '''
 from visualscrape.config import settings
 from visualscrape.lib import Signal
-from visualscrape.lib.event_handler import EventHandler
+from visualscrape.lib.event_handler import IEventHandler
 
 class CrawlEngine(object):
   """This is where a client application interfaces with the API"""
   def __init__(self):
     self.spiders_info = [] # multi-spider support
+    self.managers = []
     self.current_spider_info = None
-    self.event_handler = EventHandler()
     
   def add_spider(self, spiderName="TestSpider"):
     self.current_spider_info = SpiderInfo(spiderName=spiderName)
@@ -32,6 +32,7 @@ class CrawlEngine(object):
       spider_start_url = sp_info.get_start_url()
       scraper_cls = settings.get_preferred_scraper_for(spider_start_url)
       spider_manager = scraper_cls.get_manager()
+      self.managers.append(spider_manager)
       managers_to_spinfo_map.setdefault(spider_manager, [])
       managers_to_spinfo_map[spider_manager].append(sp_info)
     
@@ -39,14 +40,17 @@ class CrawlEngine(object):
       manager_inst = manager(sp_infos)
       manager_inst.start_all()
     
-  def register_handlers(self, eventHandler=None, dataHandler=None):
-    """The handlers are both functions that accept a single argument, a Queue.
-       Look at the EventHandler class"""
-    self.event_handler.register_event_handler(eventHandler)
-    self.event_handler.register_data_handler(dataHandler)
-    self.current_spider_info.set_event_handler(self.event_handler)
+  def register_handler(self, handler):
+    # assert isinstance(handler, IEventHandler), "Handler doesn't implement required interface <IEventHandler>"
+    handler.stop_spider_signal.connect(self.stop_spider)
+    self.current_spider_info.set_handler(handler)
     return self
-      
+  
+  def stop_spider(self, spiderID):
+    """Called by the handlers to stop the spiders if they wish"""
+    for manager in self.managers:
+      manager.stop_spider(spiderID)
+  
       
 class SpiderInfo(object):
   """Container for spider information collected by the engine"""
@@ -55,7 +59,7 @@ class SpiderInfo(object):
   def __init__(self, spiderPath=None, spiderName="TestSpider"):
     self.spider_path = spiderPath
     self.spider_name = spiderName
-    self.event_handler = None
+    self.handler = None
     
   def set_path(self, path):
     self.spider_path = path
@@ -63,8 +67,8 @@ class SpiderInfo(object):
   def get_start_url(self):
     return self.spider_path[0]
     
-  def set_event_handler(self, eventHandler):
-    self.event_handler = eventHandler
+  def set_handler(self, handler):
+    self.handler = handler
     
   def __str__(self):
     return "<SpiderInfo {0}>".format(self.spider_name)

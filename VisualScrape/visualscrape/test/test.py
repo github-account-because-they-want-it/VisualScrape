@@ -3,11 +3,13 @@ Created on May 29, 2014
 @author: Mohammed Hamdy
 '''
 
-import unittest
+from PySide.QtGui import QApplication
+import unittest, sys
 from visualscrape.engine import CrawlEngine
 from visualscrape.lib.path import SpiderPath, URL, Form, MainPage
 from visualscrape.lib.selector import ItemSelector, FieldSelector, KeyValueSelector, ImageSelector, UrlSelector
 from visualscrape.test.test_handler import Handler
+from visualscrape.ui.window import VisualScrapeWindow
 
 nefsak_laptop_info = ItemSelector([
   KeyValueSelector("Laptop", FieldSelector('//h1[@class="pr_title"]/text()', FieldSelector.XPATH)),
@@ -34,7 +36,7 @@ nefsak_laptop_info = ItemSelector([
 
 class Test(unittest.TestCase):
   
-  def test_run(self):
+  def _test_run(self):
     path = SpiderPath()
     main_page = MainPage(UrlSelector(r"//div[@class='pr_list_title']//a/@href",FieldSelector.XPATH),
                          nefsak_laptop_info,
@@ -44,7 +46,23 @@ class Test(unittest.TestCase):
     #_path.add_step(URL("http://xyasdmldfkhujdfs")).add_step(main_page)
     engine = CrawlEngine()
     handler = Handler()
-    engine.add_spider("NefsakLaptopSpider").set_path(path).register_handlers(handler.event_saver, handler.data_saver).start()
+    engine.add_spider("NefsakLaptopSpider").set_path(path).register_handler(handler).start()
+    
+  def test_ui(self):
+    app = QApplication(sys.argv)
+    main = VisualScrapeWindow()
+    handler = main.addSpider("NefsakLaptopSpider")
+    path = SpiderPath()
+    main_page = MainPage(UrlSelector(r"//div[@class='pr_list_title']//a/@href",FieldSelector.XPATH),
+                         nefsak_laptop_info,
+                         UrlSelector("nefsak\.com/15-17-Screen/\?page=\d+", FieldSelector.REGEX),
+                         FieldSelector('//div[contains(@class,"navigation_holder")]', FieldSelector.XPATH))
+    path.add_step(URL("http://www.nefsak.com/15-17-Screen/")).add_step(main_page)
+    #_path.add_step(URL("http://xyasdmldfkhujdfs")).add_step(main_page)
+    engine = CrawlEngine()
+    engine.add_spider("NefsakLaptopSpider").set_path(path).register_handler(handler).start()
+    main.show()
+    sys.exit(app.exec_())
     
 if __name__ == "__main__":
   unittest.main()

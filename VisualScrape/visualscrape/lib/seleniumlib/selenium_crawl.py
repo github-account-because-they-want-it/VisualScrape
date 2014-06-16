@@ -15,19 +15,20 @@ from visualscrape.lib.seleniumlib import log
 from visualscrape.lib.signal import *
 import sys, time, traceback
 from visualscrape.lib.selector import UrlSelector
+from visualscrape.lib.event_handler import EventConfigurator
 
-
-class SeleniumCrawler(object):
+class SeleniumCrawler(object, EventConfigurator):
   
-  def __init__(self, spiderPath, spiderID, name="SeleniumCrawler", *args, **kwargs):
-    self.path = spiderPath
+  def __init__(self, spiderInfo, spiderID, *args, **kwargs):
+    super(SeleniumCrawler, self).__init__(spiderInfo, spiderID, *args, **kwargs)
+    self._spider_info = spiderInfo
+    self.path = spiderInfo.spider_path
     self.id = spiderID
-    self.name = name
+    self.name = spiderInfo.spider_name
     self.favicon_required = kwargs.get("downloadFavicon", True)
     self.item_loader = kwargs.get("itemLoader")
-    self.event_handler = kwargs.get("eventHandler", None)
-    if self.event_handler: self.event_handler.set_spider(self)
     self.data_handler = None
+    self.event_handler = None
     
   def start(self):
     """Manages the crawling process"""
@@ -128,7 +129,7 @@ class SeleniumCrawler(object):
       log.error("Scraping timed out for: %s ... exiting" % browser.current_url)
       self._finishoff()
       sys.exit(1)
-    
+      
   @staticmethod
   def get_manager():
     return SeleniumManager
@@ -138,13 +139,15 @@ class SeleniumManager(object):
   
   def __init__(self, spidersInfo):
     self.spiders_info = spidersInfo
-    self.crawlers = []
-    for (id, sp_info) in enumerate(spidersInfo):
+    self.crawler_id_to_crawler_map = {}
+    for (spid, sp_info) in enumerate(spidersInfo):
       # start ids at 100 for selenium to make it's ids distinct from scrapy. 
       # TODO: read the start id from settings
-      crawler = SeleniumCrawler(sp_info.spider_path, id+100, sp_info.spider_name, 
-                                eventHandler=sp_info.event_handler, downloadFavicon=settings.DOWNLOAD_FAVICON.value(),
+      spid = spid + 100
+      crawler = SeleniumCrawler(sp_info, spid, 
+                                downloadFavicon=settings.DOWNLOAD_FAVICON.value(),
                                 itemLoader=settings.get_item_loader_for(sp_info.spider_path[0]))
+      self.crawler_id_to_crawler_map[spid] = crawler
       self.crawlers.append(crawler)
       
   def start_all(self):
@@ -152,3 +155,9 @@ class SeleniumManager(object):
       #crawl_process = Process(target=crawler.start, args=())
       #crawl_process.start()
       crawler.start()
+  
+  def stop_spider(self, spiderID):
+    if not spiderID in self.crawler_id_to_crawler_map:
+      return
+    else:
+      self.crawler_id_to_crawler_map[spiderID].terminate() # this should be elaborated on, when the debugging is finished

@@ -3,20 +3,24 @@ Created on Jun 6, 2014
 @author: Mohammed Hamdy
 '''
 from visualscrape.lib.signal import SpiderClosed
+from visualscrape.lib.event_handler import IEventHandler
 from threading import Timer
 
-class Handler(object):
+class Handler(IEventHandler):
   def __init__(self):
     self.event_queue = None
     self.data_queue = None
     self.timer = Timer(30, self.check_queues)
     self.timer.start()
     
-  def event_saver(self, queue):
+  def set_event_queue(self, queue):
     self.event_queue = queue
     
-  def data_saver(self, queue):
+  def set_data_queue(self, queue):
     self.data_queue = queue
+    
+  def set_engine(self, engine):
+    pass
     
   def check_queues(self):
     finished = False

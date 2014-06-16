@@ -11,7 +11,7 @@ class SearchableTable(object):
   __metaclass__ = abc.ABCMeta
   
   @abc.abstractmethod
-  def configure_lineedit(self, lineEdit):
+  def configure_search_lineedit(self, lineEdit):
     raise NotImplemented
 
         

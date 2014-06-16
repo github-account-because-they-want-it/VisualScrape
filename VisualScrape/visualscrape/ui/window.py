@@ -2,42 +2,46 @@
 Created on Jun 16, 2014
 @author: Mohammed Hamdy
 '''
-from PySide.QtGui import QWidget, QGridLayout
-from visualscrape.ui.table import ScrapeDataTable
-from visualscrape.ui.support import ScrapeSearchLineEdit
+from PySide.QtGui import QMainWindow, QGridLayout, QTabWidget, QIcon
+from functools import partial
+from visualscrape.ui.support import ScrapeSearchLineEdit, SpiderTab
 
-class SearchWindow(QWidget):
+class VisualScrapeWindow(QMainWindow):
   """A window with a data table and a search box"""
   def __init__(self, parent=None):
-    super(SearchWindow, self).__init__(parent)
+    super(VisualScrapeWindow, self).__init__(parent)
+    self._tab_index_to_lineedit_map = {}
     layout = QGridLayout()
-    self._scrape_table = ScrapeDataTable()
-    lineedit_search = ScrapeSearchLineEdit()
-    self._scrape_table.configure_lineedit(lineedit_search)
+    self._tab_widget = QTabWidget()
+    self._tab_widget.currentChanged.connect(self._changeSearchLineEdit)
     row = 0; col = 0;
-    row += 1; col += 2;
-    layout.addWidget(lineedit_search, row, col, 1, 2)
-    row += 2; col = 0;
-    layout.addWidget(self._scrape_table, row, col, 1, 4)
+    row += 1; col += 2; # the positions for the line edit
+    self._search_lineedit_pos = (row, col)
+    row += 1; col = 0;
+    layout.addWidget(self._tab_widget, row, col, 1, 4)
     self.setLayout(layout)
+    """Just one more thing. Handle the changes of tabs in respect with line edits"""
 
-"""
-I need a plan. The main UI will contain as much tabs as there are spiders.
-I don't think it does have to know how many spiders it'll run in advance.
-That can be done at runtime. Though not as elegant. If the internet is slow,
-it'll cause a delay to construct the full UI, which can confuse a user
-What is the current event handler doing?. It takes callables as queue receivers.
-And it'll only have 2 queues, even for a million spider!. So the spiders
-have to filter out for themselves. I think this can be made less messy and more
-perfect at the event handler.
-If the event handler can act as a router for the data packets. It doesn't need to
-associate any data with a specific pipe. It only has to remember to send 
-all items with the same id to the same pipe.
-Or probably better and simpler, the engine should create an event handler for each
-spider!. and skip all the routing bullshit
-It seems the engine needs to be modified too. But how?.
-Since the engine have access to the spider class, it could use it to create an event handler
-for the spider, and then we skip the fishy set_spider call.
-It's freaking shit. the pipeline now needs the spider instance, to pass
-it to the pipelines.
-"""
+  def addSpider(self, spiderName):
+    spider_tab = SpiderTab()
+    lineedit_search = ScrapeSearchLineEdit()
+    spider_tab.configure_searchlineedit(lineedit_search)
+    tab_index = self._tab_widget.addTab(spider_tab, QIcon("res/icons/document_blank.png"), spiderName)
+    self._tab_widget.setCurrentIndex(tab_index)
+    spider_tab.favicon_received.connect(partial(self._setTabIcon, tab_index)) #set the tab icon when it arrives at the tab
+    self._tab_index_to_lineedit_map[tab_index] = lineedit_search
+    return spider_tab
+  
+  def _setTabIcon(self, tabIndex, iconPath): # maybe a url too
+    """Pre-configured with the tab index, this handler always knows about
+       it's widget"""
+    self._tab_widget.setTabIcon(tabIndex, QIcon(iconPath))
+    
+  def _changeSearchLineEdit(self, tabIndex):
+    """When the tab changes, change the search line edit to match"""
+    self_layout = self.layout()
+    for tab_index, line_edit in self._tab_index_to_lineedit_map.items():
+      if self_layout.indexOf(line_edit) != -1:
+        self_layout.removeWidget(line_edit)
+      elif tab_index == tabIndex:
+        self_layout.addWidget(line_edit, self._search_lineedit_pos[0], self._search_lineedit_pos[1])

@@ -6,7 +6,6 @@ from scrapy.contrib.spiders import CrawlSpider
 from scrapy.http import Request, FormRequest
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import Selector
-from scrapy.item import Item
 from scrapy import signals
 from multiprocessing import Process
 import urlparse
@@ -15,24 +14,24 @@ from visualscrape.config import settings
 from visualscrape.lib.item import InterestItem, FaviconItem
 from visualscrape.lib.selector import FieldSelector, ImageSelector
 from visualscrape.lib.signal import *
+from visualscrape.lib.event_handler import EventConfigurator
 
-class ScrapyCrawler(CrawlSpider):
+class ScrapyCrawler(CrawlSpider, EventConfigurator):
   """
   This spider now doesn't support multiple urls per path, something 
   like start_urls=[url1, more than 1 url...]
   """
   name = "ScrapyCrawler"
-  def __init__(self, spiderPath, spiderID, name="ScrapyCrawler", *args, **kwargs):
-    super(ScrapyCrawler, self).__init__()
-    self.name = name
+  def __init__(self, spiderInfo, spiderID, name="ScrapyCrawler", *args, **kwargs):
+    EventConfigurator.__init__(self, spiderInfo, spiderID, name, *args, **kwargs)
+    self._spider_info = spiderInfo
+    self.name = spiderInfo.spider_name
     self.request_delay = kwargs.get("requestDelay", 1) #scrapy uses something between .5 and 1.5
-    self.path = spiderPath
+    self.path = spiderInfo.spider_path
     self.id = spiderID # this is a public property
     self.path_index = 0
     self.favicon_required = kwargs.get("downloadFavicon", True) #the favicon for the scraped site will be added to the first item
     self.item_loader = kwargs.get("itemLoader")
-    self.event_handler = kwargs.get("eventHandler", None)
-    if self.event_handler: self.event_handler.set_spider(self)
     self.favicon_item = None
   
   def start_requests(self):
@@ -146,6 +145,7 @@ class ScrapyCrawler(CrawlSpider):
       links = [URL(link).canonicalize(response.url) for link in links]
     return links
   
+  
   @staticmethod      
   def get_manager():
     return ScrapyManager
@@ -172,15 +172,15 @@ class ScrapyManager(object):
     self._crawl_process = Process(target=self.run_spiders, args=())
     
   def start_all(self):
-    #self._crawl_process.start()
-    self.run_spiders()
+    self._crawl_process.start()
+    #self.run_spiders()
     
   def run_spiders(self):
     """Currently, all the spiders are run within the same process"""
     log.start(loglevel=log.DEBUG)
     for (id, sp_info) in enumerate(self.spiders_info):
-      spider = ScrapyCrawler(sp_info.spider_path[:], id, sp_info.spider_name, 
-                             eventHandler=sp_info.event_handler, downloadFavicon=settings.DOWNLOAD_FAVICON.value(),
+      spider = ScrapyCrawler(sp_info, id, 
+                             downloadFavicon=settings.DOWNLOAD_FAVICON.value(),
                              itemLoader=settings.get_item_loader_for(sp_info.spider_path[0]),
                              requestDelay=settings.SITE_PARAMS.by(sp_info.spider_path[0]).get("REQUEST_DELAY", 1))
       proj_settings = get_project_settings()
@@ -193,6 +193,11 @@ class ScrapyManager(object):
       crawler.start()
     reactor.run()
     
+  def stop_spider(self, spiderID):
+    # can I stop a scrapy spider without stopping them all?
+    # it seems scrapy spiders can't be stopped without stopping them all
+    pass
+  
   def spider_closed(self, spider):
     self.closed_spiders += 1
     if spider.event_handler: spider.event_handler.emit(SpiderClosed(spider.id))
