@@ -61,6 +61,8 @@ class Test(unittest.TestCase):
     #_path.add_step(URL("http://xyasdmldfkhujdfs")).add_step(main_page)
     engine = CrawlEngine()
     engine.add_spider("NefsakLaptopSpider").set_path(path).register_handler(handler).start()
+    main.setWindowTitle("VisualScrape")
+    main.setGeometry(50, 50, 800, 600)
     main.show()
     sys.exit(app.exec_())
     

@@ -13,7 +13,8 @@ NEWSPIDER_MODULE = 'NefsakLaptops.spiders'
 #USER_AGENT = 'NefsakLaptops (+http://www.yourdomain.com)'
 ITEM_PIPELINES = {'scrapy.contrib.pipeline.images.ImagesPipeline': 1,
                   "visualscrape.lib.scrapylib.pipeline.FilterFieldsPipeline": 100,
-                  "visualscrape.lib.scrapylib.pipeline.CanonicalizeImagePathPipeline": 101}
+                  "visualscrape.lib.scrapylib.pipeline.CanonicalizeImagePathPipeline": 101,
+                  "visualscrape.lib.scrapylib.pipeline.PushToHandlerPipeline": 1000}
                   #"carscraper.pipeline.CorrectMotoFieldNamesPipeline":102}
 
 IMAGES_STORE = "D:/scraped_images" #relative to the project directory?
@@ -23,7 +24,7 @@ SCRAPER_CLASSES = {"visualscrape.lib.scrapylib.ScrapyCrawler" : 1,
 
 ITEM_LOADER = "visualscrape.lib.scrapylib.itemloader.DefaultItemLoader"
 
-DOWNLOAD_FAVICON = False
+DOWNLOAD_FAVICON = True
 
 FEED_FORMAT = "json"
 FEED_URI = "file:///C:/Users/Tickler/Desktop/example.json"

@@ -269,7 +269,6 @@ class SpiderTab(QWidget):
      It implicitly conforms to IEventHandler interface"""
   TIMER_CHECK_INTERVAL = 3000
   favicon_received = Signal(str) # send the url or path to the handler, which should be the tab widget
-  search_performed = Signal(str)
   stop_spider_signal = Signal(int)
   
   def __init__(self, parent=None):
@@ -288,7 +287,6 @@ class SpiderTab(QWidget):
   def initInterface(self):
     layout = QGridLayout()
     self._data_table = ScrapeDataTable()
-    self.search_performed.connect(self._data_table.query)
     self._progress_spider = QProgressBar()
     # make it a busy indicator. you don't know when it'll finish 
     self._progress_spider.setMinimum(0); self._progress_spider.setMaximum(0)
@@ -335,4 +333,4 @@ class SpiderTab(QWidget):
         self._favicon_received = True
         self._spider_id = item["id"]
       else:
-        self._data_table.addItem()
+        self._data_table.addItem(item)

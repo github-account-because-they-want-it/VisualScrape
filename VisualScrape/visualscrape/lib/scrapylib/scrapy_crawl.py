@@ -13,7 +13,7 @@ from visualscrape.lib.path import URL, Form
 from visualscrape.config import settings
 from visualscrape.lib.item import InterestItem, FaviconItem
 from visualscrape.lib.selector import FieldSelector, ImageSelector
-from visualscrape.lib.signal import *
+from visualscrape.lib.signal import SpiderStarted, SpiderClosed
 from visualscrape.lib.event_handler import EventConfigurator
 
 class ScrapyCrawler(CrawlSpider, EventConfigurator):
@@ -25,6 +25,8 @@ class ScrapyCrawler(CrawlSpider, EventConfigurator):
   def __init__(self, spiderInfo, spiderID, name="ScrapyCrawler", *args, **kwargs):
     EventConfigurator.__init__(self, spiderInfo, spiderID, name, *args, **kwargs)
     self._spider_info = spiderInfo
+    # prevent the handler from being pickled into the spider process. It's not needed anymore after EventConfigurator.__init__
+    self._spider_info.handler = None 
     self.name = spiderInfo.spider_name
     self.request_delay = kwargs.get("requestDelay", 1) #scrapy uses something between .5 and 1.5
     self.path = spiderInfo.spider_path
@@ -108,7 +110,6 @@ class ScrapyCrawler(CrawlSpider, EventConfigurator):
           item_loader.add_xpath(key, value_selector)
     item_loader.add_value("id", self.id)
     item = item_loader.load_item()
-    if self.event_handler: self.event_handler.emit(ItemScraped(), item=item)
     yield item
     
   def _take_step(self):
@@ -172,8 +173,8 @@ class ScrapyManager(object):
     self._crawl_process = Process(target=self.run_spiders, args=())
     
   def start_all(self):
-    self._crawl_process.start()
-    #self.run_spiders()
+    #self._crawl_process.start()
+    self.run_spiders()
     
   def run_spiders(self):
     """Currently, all the spiders are run within the same process"""

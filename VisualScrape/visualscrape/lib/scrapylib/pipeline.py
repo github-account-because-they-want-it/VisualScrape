@@ -4,6 +4,7 @@ Created on May 28, 2014
 '''
 import os
 from visualscrape.config import settings
+from visualscrape.lib.signal import ItemScraped
 
 class FilterFieldsPipeline(object):
   """
@@ -32,4 +33,10 @@ class CanonicalizeImagePathPipeline(object):
         if not parent_folder in image_path:
           image_path = os.path.join(parent_folder, image_path)
           image["path"] = image_path
+    return item
+
+class PushToHandlerPipeline(object):
+  
+  def process_item(self, item, spider):
+    spider.event_handler.emit(ItemScraped(), item=item)
     return item

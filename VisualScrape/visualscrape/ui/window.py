@@ -2,7 +2,7 @@
 Created on Jun 16, 2014
 @author: Mohammed Hamdy
 '''
-from PySide.QtGui import QMainWindow, QGridLayout, QTabWidget, QIcon
+from PySide.QtGui import QMainWindow, QGridLayout, QTabWidget, QIcon, QWidget
 from functools import partial
 from visualscrape.ui.support import ScrapeSearchLineEdit, SpiderTab
 
@@ -19,17 +19,19 @@ class VisualScrapeWindow(QMainWindow):
     self._search_lineedit_pos = (row, col)
     row += 1; col = 0;
     layout.addWidget(self._tab_widget, row, col, 1, 4)
-    self.setLayout(layout)
-    """Just one more thing. Handle the changes of tabs in respect with line edits"""
+    central_widget = QWidget()
+    central_widget.setLayout(layout)
+    self.setCentralWidget(central_widget)
 
   def addSpider(self, spiderName):
+    # initiates a spider tab with it's search line edit
     spider_tab = SpiderTab()
     lineedit_search = ScrapeSearchLineEdit()
     spider_tab.configure_searchlineedit(lineedit_search)
     tab_index = self._tab_widget.addTab(spider_tab, QIcon("res/icons/document_blank.png"), spiderName)
-    self._tab_widget.setCurrentIndex(tab_index)
     spider_tab.favicon_received.connect(partial(self._setTabIcon, tab_index)) #set the tab icon when it arrives at the tab
     self._tab_index_to_lineedit_map[tab_index] = lineedit_search
+    self._changeSearchLineEdit(tab_index) # call it again, though it's called after addTab, because the line edit has not been saved yet
     return spider_tab
   
   def _setTabIcon(self, tabIndex, iconPath): # maybe a url too
@@ -39,9 +41,9 @@ class VisualScrapeWindow(QMainWindow):
     
   def _changeSearchLineEdit(self, tabIndex):
     """When the tab changes, change the search line edit to match"""
-    self_layout = self.layout()
+    self_layout = self.centralWidget().layout()
     for tab_index, line_edit in self._tab_index_to_lineedit_map.items():
-      if self_layout.indexOf(line_edit) != -1:
+      if self_layout.indexOf(line_edit) >= 0:
         self_layout.removeWidget(line_edit)
       elif tab_index == tabIndex:
-        self_layout.addWidget(line_edit, self._search_lineedit_pos[0], self._search_lineedit_pos[1])
+        self_layout.addWidget(line_edit, self._search_lineedit_pos[0], self._search_lineedit_pos[1], 1, 2)

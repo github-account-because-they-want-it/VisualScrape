@@ -5,7 +5,7 @@ Created on Jun 15, 2014
 
 from PySide.QtGui import QTableWidget, QTableWidgetItem, QCompleter, QTableView
 from PySide.QtCore import Qt
-import collections
+import collections, re
 from visualscrape.ui.slideshow import AnimatedSlideshowWidget
 
 class ScrapeDataTable(QTableWidget):
@@ -15,6 +15,9 @@ class ScrapeDataTable(QTableWidget):
     super(ScrapeDataTable, self).__init__(parent)
     self._cell_size = cellSize
     self._configured = False
+    self._images_in_items = False
+    self._orig_headers = []
+    self._headers = []
       
   def addItem(self, item):
     """Means append a row with this item"""
@@ -23,14 +26,20 @@ class ScrapeDataTable(QTableWidget):
       self._configured = True
       self.configure_search_lineedit(self._search_lineedit)
     new_row_index = self.rowCount()
-    values = item.values()
-    image_items = values[0]
-    image_paths = [image_item.get("path") for image_item in image_items]
-    self.setCellWidget(new_row_index, 0, AnimatedSlideshowWidget.slideshowCreator(image_paths))
-    for (col_index, text_data) in enumerate(values[1:]):
+    self.insertRow(new_row_index)
+    values = []
+    for col_name in self._orig_headers: # the orig_headers are ordered like the table columns
+      if col_name in item: values.append(item[col_name])
+      else: values.append('')
+    if self._images_in_items:
+      image_items = item.pop("images")
+      image_paths = [image_item.get("path") for image_item in image_items]
+      self.setColumnWidth(0, self._cell_size[0])
+      self.setRowHeight(new_row_index, self._cell_size[1])
+      self.setCellWidget(new_row_index, 0, AnimatedSlideshowWidget.slideshowCreator(image_paths))
+    item.pop("id")
+    for (col_index, text_data) in enumerate(values):
       self.setItem(new_row_index, col_index + 1, QTableWidgetItem(text_data))
-    self.setColumnWidth(0, self._cell_size[0])
-    self.setRowHeight(new_row_index, self._cell_size[1])
 
   def _configureTable(self, item):
     # setup the various columns
@@ -38,17 +47,21 @@ class ScrapeDataTable(QTableWidget):
     images_in_item = "images" in item.keys() #the item may not have images_in_item
     ordered_item = collections.OrderedDict()
     keys = item.keys()
-    if images_in_item : keys.remove("images")
+    if images_in_item : 
+      keys.remove("images")
+      self._images_in_items = True
     keys.sort(key=lambda key: key.lower())
     # bring the images key to be the first
     if images_in_item: keys = ["images"] + keys
     for key in keys:
       ordered_item[key] = item[key]
     headers = []
+    self._orig_headers = keys[1:] if self._images_in_items else keys
     for key in keys:
       first, rest = key[0], key[1:]
       header = first.upper() + rest.lower()
       headers.append(header)
+    self._headers = headers
     for (i, header) in enumerate(headers):
       self.setHorizontalHeaderItem(i, QTableWidgetItem(header))
     self.horizontalHeader().setMovable(True)
@@ -61,6 +74,7 @@ class ScrapeDataTable(QTableWidget):
       completer = QCompleter([header+splitter for header in self._headers[1:]]) # search anything but the image column
       completer.setCaseSensitivity(Qt.CaseInsensitive)
       lineEdit.setCompleter(completer)
+      lineEdit.textChanged.connect(self.query)
       self._column_query_sep = splitter
     
   def query(self, queryText):
@@ -76,10 +90,12 @@ class ScrapeDataTable(QTableWidget):
     # hide all rows in which the query doesn't match the specified column
     search_col_index = self._headers.index(column_name)
     query = query.lower()
+    query_words = re.split("\s+", query)
     for i in range(self.rowCount()):
       col_item = self.item(i, search_col_index)
       item_text = col_item.text().lower()
-      if query in item_text:
+      all_in = [query_word in item_text for query_word in query_words] # multi-word query support. I hope I don't reimplement Google
+      if all_in:
         self.showRow(i)
       else:
         self.hideRow(i)
