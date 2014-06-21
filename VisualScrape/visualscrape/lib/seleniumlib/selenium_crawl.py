@@ -7,7 +7,7 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
-from multiprocessing import Process
+from threading import Thread
 from visualscrape.config import settings
 from visualscrape.lib.path import URL, Form, FormElemInfo, MainPage
 from visualscrape.lib.seleniumlib.handler import SeleniumDataHandler
@@ -76,7 +76,7 @@ class SeleniumCrawler(object, EventConfigurator):
       profile.set_preference("network.cookie.cookieBehavior", 1)
     self.nav_browser = webdriver.Firefox(firefox_profile=profile)
     self.item_browser = webdriver.Firefox(firefox_profile=profile)
-    self.data_handler = SeleniumDataHandler(self.nav_browser, self.item_browser, self.path, 
+    self.data_handler = SeleniumDataHandler(self, self.nav_browser, self.item_browser, self.path, 
                                             self.id, self.item_loader)
     #try to run headless on linux
     if sys.platform.startswith("linux"):
@@ -137,7 +137,7 @@ class SeleniumManager(object):
   
   def __init__(self, spidersInfo):
     self.spiders_info = spidersInfo
-    self.crawler_id_to_crawler_map = {}
+    self.crawler_id_to_thread_map = {}
     for (spid, sp_info) in enumerate(spidersInfo):
       # start ids at 100 for selenium to make it's ids distinct from scrapy. 
       # TODO: read the start id from settings
@@ -145,17 +145,18 @@ class SeleniumManager(object):
       crawler = SeleniumCrawler(sp_info, spid, 
                                 downloadFavicon=settings.DOWNLOAD_FAVICON.value(),
                                 itemLoader=settings.get_item_loader_for(sp_info.spider_path[0]))
-      self.crawler_id_to_crawler_map[spid] = crawler
+      crawl_thread = Thread(target=crawler.start, name="SeleniumThread#{0}".format(spid + 1))
+      self.crawler_id_to_thread_map[spid] = crawl_thread
       self.crawlers.append(crawler)
       
   def start_all(self):
-    for crawler in self.crawlers: 
-      #crawl_process = Process(target=crawler.start, args=())
-      #crawl_process.start()
-      crawler.start()
+    for crawl_thread in self.crawler_id_to_thread_map.values(): 
+      crawl_thread.start()
   
   def stop_spider(self, spiderID):
-    if not spiderID in self.crawler_id_to_crawler_map:
+    if not spiderID in self.crawler_id_to_thread_map:
       return
     else:
-      self.crawler_id_to_crawler_map[spiderID].terminate() # this should be elaborated on, when the debugging is finished
+      thread_to_stop = self.crawler_id_to_thread_map[spiderID]
+      thread_to_stop.terminate()
+      thread_to_stop.join()    

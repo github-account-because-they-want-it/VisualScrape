@@ -8,20 +8,24 @@ from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import Selector
 import os, urlparse, tempfile, uuid, sys
 from visualscrape.lib.selector import FieldSelector, UrlSelector, ImageSelector
+from visualscrape.lib.pipeline_handler import PipelineHandler
 from visualscrape.lib.item import InterestItem, FaviconItem
 from visualscrape.lib.util import download_image
 from visualscrape.lib.path import URL
 from visualscrape.config import settings
+from visualscrape.lib.commonspider.base import CommonCrawler
 
-class SeleniumDataHandler(object):
+class SeleniumDataHandler(CommonCrawler):
   """Takes the browser instances and the spider path. When called at the right times,
      returns items, item pages and navigation pages"""
   
-  def __init__(self, navBrowser, itemBrowser, spiderPath, spiderId, itemLoader):
+  def __init__(self, spider, navBrowser, itemBrowser, spiderPath, spiderId, itemLoader):
+    self.spider = spider
+    self.pipeline_handler = PipelineHandler(self.spider)
     self.nav_browser = navBrowser
     self.item_browser = itemBrowser
     self.path = spiderPath
-    self.spider_id = spiderId
+    self.id = spiderId
     self.item_loader = itemLoader # used to load scraped items
     self.navigation_extracted = [] #keep track of extracted navigation pages and don't return duplicates
     
@@ -32,52 +36,25 @@ class SeleniumDataHandler(object):
     
   def favicon_item(self):
     favicon_item = FaviconItem()
-    favicon_item["id"] = self.spider_id
+    favicon_item["id"] = self.id
     parsed_home = urlparse.urlparse(self.nav_browser.current_url)
     favicon_url = urlparse.urljoin(parsed_home.scheme + "://" + parsed_home.netloc, "favicon.ico")
     downloaded_path = download_image(favicon_url, self._get_image_save_path())
     favicon_item["images"] = [{"path": downloaded_path, "url":favicon_url}]
+    self.pipeline_handler.run_pipeline(favicon_item)
     return favicon_item
     
   def next_item(self):
     #find an item from the item browser and return it
     item_selector = self.path[-1].item_selector
+    key_value_selectors = item_selector.key_value_selectors
     # this is a duplicate from scrapy item parser. Probably refactor
     response = TextResponse(self.item_browser.current_url, body=self.item_browser.page_source, encoding="utf-8")
-    item_info = {"keys":[], "values":[], "types":[]}
-    # fill an item loader
-    for key_value_selector in item_selector:
-      # keys can be either strings or selectors
-      key_selector = key_value_selector.key_selector
-      if isinstance(key_selector, FieldSelector):
-        sel = Selector(response)
-        if key_selector.type == FieldSelector.XPATH:
-          key = sel.xpath(key_selector).extract()
-        elif key_selector.type == FieldSelector.CSS:
-          key = sel.css(key_selector).extract()
-        if key: key = key[0]
-        else: key = "Invalid_Key_Selector" #this may pack in all values with invalid keys with this key.
-      else: #key_selector is a FieldSelector, use it to get the key from the response
-        key = key_selector
-      item_info["keys"].append(key)
-      value_selector = key_value_selector.value_selector
-      item_info["values"].append(value_selector)
+    item_info = self.get_item_info(key_value_selectors, response)
     # dynamically create the item from collected keys. The item must be created before the item loader
     item = InterestItem(item_info["keys"])
     item_loader = self.item_loader(item, response=response, response_ctx=response) #pass the response to i/o processors
-    for (key, value_selector) in zip(item_info["keys"], item_info["values"]):
-      if value_selector.type == FieldSelector.CSS:
-        if isinstance(value_selector, ImageSelector):
-          item_loader.add_css("image_urls", value_selector)
-        else:
-          item_loader.add_css(key, value_selector)
-      elif value_selector.type == FieldSelector.XPATH:
-        if isinstance(value_selector, ImageSelector):
-          item_loader.add_xpath("image_urls", value_selector)
-        else:
-          item_loader.add_xpath(key, value_selector)
-    item_loader.add_value("id", self.spider_id)
-    item = item_loader.load_item() # this should take care of canonicalizing image urls and processing stuff
+    item = self.fill_item_loader(item_loader, item_info, response, item_selector.post_process_info)
     # manually download the images
     image_urls = item.pop("image_urls", None)
     if image_urls: # only add images field to the item if the results already include images. ie, no extra fields
@@ -87,6 +64,7 @@ class SeleniumDataHandler(object):
         loc = download_image(image_url, save_folder)
         if loc: downloaded_images.append((image_url, loc))
       item.fields["images"] = [{"url":url, "path":path} for (url, path) in downloaded_images] 
+    self.pipeline_handler.run_pipeline(item)
     return item
      
   def more_navigation_pages(self):

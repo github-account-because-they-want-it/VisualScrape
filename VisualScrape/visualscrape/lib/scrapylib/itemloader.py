@@ -21,6 +21,8 @@ class DefaultItemLoader(ItemLoader):
   
   image_urls_in = MapCompose(canonicalize)
   image_urls_out = Identity()
+  postinfo_in = Identity()
+  postinfo_out = Identity()
   
 class RegexItemLoader(ItemLoader):
   """Incomplete"""

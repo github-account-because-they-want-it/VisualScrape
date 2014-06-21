@@ -8,15 +8,18 @@ from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import Selector
 from scrapy import signals
 from multiprocessing import Process
-import urlparse
+from threading import Thread
+import urlparse, re
 from visualscrape.lib.path import URL, Form
+from visualscrape.lib.commonspider.base import CommonCrawler
 from visualscrape.config import settings
 from visualscrape.lib.item import InterestItem, FaviconItem
-from visualscrape.lib.selector import FieldSelector, ImageSelector
+from visualscrape.lib.selector import FieldSelector, ImageSelector, ContentSelector
 from visualscrape.lib.signal import SpiderStarted, SpiderClosed
 from visualscrape.lib.event_handler import EventConfigurator
+from .log import log
 
-class ScrapyCrawler(CrawlSpider, EventConfigurator):
+class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
   """
   This spider now doesn't support multiple urls per path, something 
   like start_urls=[url1, more than 1 url...]
@@ -76,40 +79,11 @@ class ScrapyCrawler(CrawlSpider, EventConfigurator):
       yield self.favicon_item
       self.favicon_item = None
     item_selector = self.path[-1].item_selector
-    item_info = {"keys":[], "values":[], "types":[]}
-    # fill an item loader
-    for key_value_selector in item_selector:
-      # keys can be either strings or selectors
-      key_selector = key_value_selector.key_selector
-      if isinstance(key_selector, FieldSelector):
-        sel = Selector(response)
-        if key_selector.type == FieldSelector.XPATH:
-          key = sel.xpath(key_selector).extract()
-        elif key_selector.type == FieldSelector.CSS:
-          key = sel.css(key_selector).extract()
-        if key: key = key[0]
-        else: key = "Invalid_Key_Selector" #this may pack in all values with invalid keys with this key.
-      else: #key_selector is a FieldSelector, use it to get the key from the response
-        key = key_selector
-      item_info["keys"].append(key)
-      value_selector = key_value_selector.value_selector
-      item_info["values"].append(value_selector)
-    # dynamically create the item from collected keys. The item must be created before the item loader
+    key_value_selectors = item_selector.key_value_selectors
+    item_info = self.get_item_info(key_value_selectors, response)
     item = InterestItem(item_info["keys"])
     item_loader = self.item_loader(item, response=response, response_ctx=response) #pass the response to i/o processors
-    for (key, value_selector) in zip(item_info["keys"], item_info["values"]):
-      if value_selector.type == FieldSelector.CSS:
-        if isinstance(value_selector, ImageSelector):
-          item_loader.add_css("image_urls", value_selector)
-        else:
-          item_loader.add_css(key, value_selector)
-      elif value_selector.type == FieldSelector.XPATH:
-        if isinstance(value_selector, ImageSelector):
-          item_loader.add_xpath("image_urls", value_selector)
-        else:
-          item_loader.add_xpath(key, value_selector)
-    item_loader.add_value("id", self.id)
-    item = item_loader.load_item()
+    item = self.fill_item_loader(item_loader, item_info, response, item_selector.post_process_info)
     yield item
     
   def _take_step(self):
@@ -169,12 +143,11 @@ class ScrapyManager(object):
     os.environ["SCRAPY_SETTINGS_MODULE"] = "visualscrape.settings"
     self.spiders_info = spidersInfo
     self.closed_spiders = 0
-    self.crawlers = []
-    self._crawl_process = Process(target=self.run_spiders, args=())
+    self._ids_to_crawlers_map = {}
+    self._crawl_thread = Thread(target=self.run_spiders)
     
   def start_all(self):
-    #self._crawl_process.start()
-    self.run_spiders()
+    self._crawl_thread.start() # it seems that twisted has done a good job releasing the GIL. This remains responsive
     
   def run_spiders(self):
     """Currently, all the spiders are run within the same process"""
@@ -186,7 +159,7 @@ class ScrapyManager(object):
                              requestDelay=settings.SITE_PARAMS.by(sp_info.spider_path[0]).get("REQUEST_DELAY", 1))
       proj_settings = get_project_settings()
       crawler = Crawler(proj_settings)
-      self.crawlers.append(crawler)
+      self._ids_to_crawlers_map[id] = crawler
       # connect each spider's closed signal to self. When all spiders done, stop the reactor
       crawler.signals.connect(self.spider_closed, signal=signals.spider_closed) # i do not really now if that is appended or overwritten
       crawler.configure()
@@ -195,9 +168,8 @@ class ScrapyManager(object):
     reactor.run()
     
   def stop_spider(self, spiderID):
-    # can I stop a scrapy spider without stopping them all?
-    # it seems scrapy spiders can't be stopped without stopping them all
-    pass
+    if spiderID in self._ids_to_crawlers_map: # the id may not belong to a scrapy spider, so check it 
+      self._ids_to_crawlers_map[spiderID].stop()
   
   def spider_closed(self, spider):
     self.closed_spiders += 1

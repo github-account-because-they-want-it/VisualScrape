@@ -68,8 +68,38 @@ class ImageSelector(FieldSelector):
     return super(ImageSelector, self).__unicode__().replace("Field", "Image")
 
 
-class ItemSelector(list):
-  """This should be used to contain FieldSelector objects,
-     each corresponding to an item field
+class ContentSelector(FieldSelector):
+  WORDLIST = 1
+  REGEX = 2
+  
+  def __init__(self, selector, restrictSelector, type=WORDLIST):
+    """Args:
+         restrictSelector : a CSS selector of an area where the search will be constrained to"""
+    super(ContentSelector, self).__init__(selector, type)
+    self.restrict_selector = restrictSelector
+  
+  def __unicode__(self):
+    return FieldSelector.__unicode__(self).replace("Field", "Content")
+
+class ItemSelector(object):
+  """This should be used to contain KeyValueSelector objects. 
+     along with any item post-processing information
   """
+  def __init__(self, kvSelectors=[], postProcessingInfo=None):
+    self.key_value_selectors = kvSelectors
+    self.post_process_info = postProcessingInfo
+
+
+class Merge(object):
+  def __init__(self, fieldNames, outputName, mergeChars=''):
+    self.field_names = fieldNames
+    self.output_name = outputName
+    self.merge_chars = mergeChars
+    
+  def __unicode__(self):
+    return "<Merge operation at 0x%0x>" % id(self)
+
+class PostProcessing(list):
+  """A list of post processing information objects"""
   pass
+  

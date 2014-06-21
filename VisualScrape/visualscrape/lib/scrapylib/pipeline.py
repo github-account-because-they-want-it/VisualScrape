@@ -5,6 +5,7 @@ Created on May 28, 2014
 import os
 from visualscrape.config import settings
 from visualscrape.lib.signal import ItemScraped
+from visualscrape.lib.selector import Merge
 
 class FilterFieldsPipeline(object):
   """
@@ -16,6 +17,8 @@ class FilterFieldsPipeline(object):
   def process_item(self, item, spider):
     if item.get("image_urls"):
       item.pop("image_urls")
+    if item.get("postinfo"):
+      item.pop("postinfo")
       
     return item
 
@@ -39,4 +42,19 @@ class PushToHandlerPipeline(object):
   
   def process_item(self, item, spider):
     spider.event_handler.emit(ItemScraped(), item=item)
+    return item
+  
+class ItemPostProcessor(object):
+  
+  def process_item(self, item, spider):
+    pp_info = item.get("postinfo")
+    if pp_info:
+      for operation in pp_info:
+        if isinstance(operation, Merge):
+          to_merge = []
+          for field_name in operation.field_names:
+            to_merge.append(item.pop(field_name))
+          merged = operation.merge_chars.join(to_merge)
+          item.fields[operation.output_name] = {}
+          item[operation.output_name] = merged
     return item

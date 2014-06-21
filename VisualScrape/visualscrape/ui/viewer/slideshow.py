@@ -14,7 +14,7 @@ class SlideshowWidget(QStackedWidget):
   clicking to switch between images
   """
   def __init__(self, imageList=[], showIndicator=False, parent=None):
-    from visualscrape.ui.support import ImageWidget, OverlayContainer
+    from visualscrape.ui.viewer.support import ImageWidget, OverlayContainer
     super(SlideshowWidget, self).__init__(parent)
     self._cur_widget_index = 0
     self._image_widgets = []
@@ -135,7 +135,7 @@ class AnimatedSlideshowWidget(SlideshowWidget):
   @staticmethod
   def slideshowCreator(imageList):
     """Return a suitable widget according to the number of images in imageList"""
-    from visualscrape.ui.support import ImageWidget
+    from visualscrape.ui.viewer.support import ImageWidget
     if not imageList:
       return QWidget()
     elif len(imageList) == 1:

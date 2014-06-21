@@ -6,18 +6,22 @@ Created on Jun 15, 2014
 from PySide.QtGui import QTableWidget, QTableWidgetItem, QCompleter, QTableView
 from PySide.QtCore import Qt
 import collections, re
-from visualscrape.ui.slideshow import AnimatedSlideshowWidget
+from visualscrape.ui.viewer.slideshow import AnimatedSlideshowWidget
+from visualscrape.lib.data import ProducerMixin, DataStore
 
-class ScrapeDataTable(QTableWidget):
+class ScrapeDataTable(QTableWidget, ProducerMixin):
   """This table imports magic but doesn't create it!"""
   
-  def __init__(self, cellSize=(200, 200),parent=None):
-    super(ScrapeDataTable, self).__init__(parent)
+  def __init__(self, cellSize=(200, 200), name='', parent=None):
+    QTableWidget.__init__(self, parent)
+    ProducerMixin.__init__(self, type=ProducerMixin.TYPE_TABLE, name=name)
     self._cell_size = cellSize
     self._configured = False
     self._images_in_items = False
     self._orig_headers = []
     self._headers = []
+    self._visible_rows = "all" # a list of ints. "all" means no searches done yet
+    self._items = []
       
   def addItem(self, item):
     """Means append a row with this item"""
@@ -25,6 +29,7 @@ class ScrapeDataTable(QTableWidget):
       self._configureTable(item)
       self._configured = True
       self.configure_search_lineedit(self._search_lineedit)
+    self._items.append(item)
     new_row_index = self.rowCount()
     self.insertRow(new_row_index)
     values = []
@@ -37,7 +42,6 @@ class ScrapeDataTable(QTableWidget):
       self.setColumnWidth(0, self._cell_size[0])
       self.setRowHeight(new_row_index, self._cell_size[1])
       self.setCellWidget(new_row_index, 0, AnimatedSlideshowWidget.slideshowCreator(image_paths))
-    item.pop("id")
     for (col_index, text_data) in enumerate(values):
       self.setItem(new_row_index, col_index + 1, QTableWidgetItem(text_data))
 
@@ -56,11 +60,11 @@ class ScrapeDataTable(QTableWidget):
     for key in keys:
       ordered_item[key] = item[key]
     headers = []
-    self._orig_headers = keys[1:] if self._images_in_items else keys
+    self._orig_headers = keys[1:] if self._images_in_items else keys # those are the headers before using capital first and so on
     for key in keys:
-      first, rest = key[0], key[1:]
-      header = first.upper() + rest.lower()
-      headers.append(header)
+        first, rest = key[0], key[1:]
+        header = first.upper() + rest.lower()
+        headers.append(header)
     self._headers = headers
     for (i, header) in enumerate(headers):
       self.setHorizontalHeaderItem(i, QTableWidgetItem(header))
@@ -74,7 +78,7 @@ class ScrapeDataTable(QTableWidget):
       completer = QCompleter([header+splitter for header in self._headers[1:]]) # search anything but the image column
       completer.setCaseSensitivity(Qt.CaseInsensitive)
       lineEdit.setCompleter(completer)
-      lineEdit.textChanged.connect(self.query)
+      lineEdit.textEdited.connect(self.query)
       self._column_query_sep = splitter
     
   def query(self, queryText):
@@ -88,22 +92,34 @@ class ScrapeDataTable(QTableWidget):
       [self.showRow(i) for i in range(self.rowCount())]
       return
     # hide all rows in which the query doesn't match the specified column
+    self._visible_rows = []
     search_col_index = self._headers.index(column_name)
     query = query.lower()
     query_words = re.split("\s+", query)
     for i in range(self.rowCount()):
       col_item = self.item(i, search_col_index)
       item_text = col_item.text().lower()
-      all_in = [query_word in item_text for query_word in query_words] # multi-word query support. I hope I don't reimplement Google
+      all_in = all([query_word in item_text for query_word in query_words]) # multi-word query support. I hope I don't reimplement Google
       if all_in:
         self.showRow(i)
+        self._visible_rows.append(i)
       else:
         self.hideRow(i)
+        
+  def get_visible_data(self):
+    """Return a list of dictionaries of the currently visible rows"""
+    if self._visible_rows == "all":
+      return self._items
+    else:
+      visible_data = []
+      for row_i in self._visible_rows:
+        visible_data.append(self._items[row_i])
+      return visible_data
 
 class ScrapeTable(QTableView):
   """The table view approach to visualization"""
   def __init__(self, parent=None):
-    from visualscrape.ui.support import ScrapeModel, ScrapeItemDelegate
+    from visualscrape.ui.viewer.support import ScrapeModel, ScrapeItemDelegate
     super(ScrapeTable, self).__init__(parent)
     """Use a delegate that can display an image in a column"""
     self.setModel(ScrapeModel())

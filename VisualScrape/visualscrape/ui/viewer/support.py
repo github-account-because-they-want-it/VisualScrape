@@ -5,14 +5,17 @@ Created on Jun 14, 2014
 
 from __future__ import division
 from PySide.QtGui import (QWidget, QPixmap, QPainter, QPen, QHBoxLayout, QStyledItemDelegate,
-                          QLineEdit, QSizePolicy, QGridLayout, QProgressBar,
-  QPushButton)
-from PySide.QtCore import Qt, QPointF, Signal, QAbstractTableModel, QSize, QTimer, Signal
+                          QLineEdit, QSizePolicy, QGridLayout, QProgressBar,QPushButton, QLabel,
+                          QMessageBox, QMenu, QAction, QTabBar, QTabWidget)
+from PySide.QtCore import Qt, QPointF, QAbstractTableModel, QSize, QTimer, Signal
 from os import path
 import json, collections
-from visualscrape.ui.style import search_style
-from visualscrape.ui.table import ScrapeDataTable
+from visualscrape.ui.viewer.style import search_style
+from visualscrape.ui.viewer.table import ScrapeDataTable
+from visualscrape.ui.viewer.dialog import ExportDialog
 from visualscrape.lib.signal import SpiderClosed
+from visualscrape.lib.export import FileExporter
+from visualscrape.lib.data import NamedAction
 
 class ImageWidget(QWidget):
   """
@@ -27,7 +30,7 @@ class ImageWidget(QWidget):
              size.
     """
     super(ImageWidget, self).__init__(parent)
-    assert imagePath != None, "Invalid image path"
+    assert imagePath != None, self.tr("Invalid image path")
     self._image_pixmap = QPixmap(path.normpath(imagePath))
     self._fill = fill
     
@@ -250,16 +253,17 @@ class ScrapeSearchLineEdit(QLineEdit):
     self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     self.setStyleSheet(search_style)
     self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-    self.setText("Search: ")
+    self._search_str = self.tr("Search: ")
+    self.setText(self._search_str)
     
   def focusInEvent(self, fie):
-    if self.text() == "Search: ":
+    if self.text() == self._search_str:
       self.clear()
     super(ScrapeSearchLineEdit, self).focusInEvent(fie)
   
   def focusOutEvent(self, foe):
     if not self.text():
-      self.setText("Search: ")
+      self.setText(self._search_str)
     super(ScrapeSearchLineEdit, self).focusOutEvent(foe)
       
       
@@ -271,35 +275,66 @@ class SpiderTab(QWidget):
   favicon_received = Signal(str) # send the url or path to the handler, which should be the tab widget
   stop_spider_signal = Signal(int)
   
-  def __init__(self, parent=None):
+  def __init__(self, parent=None, **kwargs):
     super(SpiderTab, self).__init__(parent)
     self._event_queue = None
     self._data_queue = None
     self._engine = None
     self._favicon_received = False
     self._spider_id = None
-    self.initInterface()
+    self._item_count = 0
+    self.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu)
+    self.initInterface(kwargs)
+    self._context_menu = None
+    self._setupContextMenu()
     self._queue_check_timer = QTimer()
     self._queue_check_timer.setInterval(self.TIMER_CHECK_INTERVAL)
     self._queue_check_timer.timeout.connect(self._checkQueues)
     self._queue_check_timer.start()
     
-  def initInterface(self):
+  def initInterface(self, kwargs):
     layout = QGridLayout()
-    self._data_table = ScrapeDataTable()
+    self._data_table = ScrapeDataTable(name=kwargs.get("name"))
     self._progress_spider = QProgressBar()
+    self._label_count = QLabel(self.tr("0 items scraped"))
     # make it a busy indicator. you don't know when it'll finish 
     self._progress_spider.setMinimum(0); self._progress_spider.setMaximum(0)
     self._progress_spider.setTextVisible(False)
-    self._btn_stop_spider = QPushButton("Stop Spider [INCOMPLETE]")
-    self._btn_stop_spider.clicked.connect(self._stopSpider)
+    self._btn_stop_spider = QPushButton(self.tr("Stop Spider"))
+    self._btn_stop_spider.clicked.connect(self.stop_spider)
     row = 0; col = 0;
     layout.addWidget(self._data_table, row, col, 1, 4)
     row += 1;
-    layout.addWidget(self._progress_spider, row, col, 1, 2)
-    col += 3
+    layout.addWidget(self._progress_spider, row, col, 1, 1)
+    col += 1
+    layout.addWidget(self._label_count, row, col, 1, 2)
+    col += 2
     layout.addWidget(self._btn_stop_spider, row, col, 1, 1)
     self.setLayout(layout)
+    
+  def _setupContextMenu(self):
+    from visualscrape.lib.data import ActionStore
+    self._context_menu = QMenu(self)
+    # get the export action from the action store
+    action_store = ActionStore.get_instance()
+    for action in action_store:
+      if action.get_name() == "export":
+        export_action = action
+        break
+    self._context_menu.addAction(export_action)
+    
+  def export_table(self):
+    export_dialog = ExportDialog()
+    export_dialog.exec_()
+    export_info = export_dialog.data()
+    if export_info:
+      data = self._data_table.get_visible_data()
+      FileExporter.export(data, self._data_table.name.lower(), export_info.location, export_info.format)
+  
+  def contextMenuEvent(self, cme):
+    rel_pos = cme.pos()
+    global_pos = self.mapToGlobal(rel_pos)
+    self._context_menu.popup(global_pos)
     
   def set_event_queue(self, eq):
     self._event_queue = eq
@@ -307,12 +342,22 @@ class SpiderTab(QWidget):
   def set_data_queue(self, dq):
     self._data_queue = dq
     
-  def _stopSpider(self):
-    if self._spider_id is None: # do not stop the the spider without knowing it's id
+  def stop_spider(self):
+    if self._spider_id is None: # do not stop the the spider before receiving data
       pass
     else:
-      self._btn_stop_spider.setEnabled(False)
-      self.stop_spider_signal.emit(self._spider_id)
+      if self._queue_check_timer.isActive():
+        confirm_stop = QMessageBox(self)
+        confirm_stop.setIcon(QMessageBox.Warning)
+        confirm_stop.setStandardButtons(QMessageBox.Yes + QMessageBox.No)
+        confirm_stop.setText(self.tr("Scraping process still running"))
+        confirm_stop.setDetailedText(self.tr("Are you sure you want to stop it?"))
+        ret = confirm_stop.exec_()
+        if ret == QMessageBox.Yes:
+          self.stop_spider_signal.emit(self._spider_id)
+          return True
+        else: return False # I won't whip you if you stop it accidentally
+      else: return True # already over
       
   def configure_searchlineedit(self, lineEdit):
     self._data_table.configure_search_lineedit(lineEdit)
@@ -322,15 +367,96 @@ class SpiderTab(QWidget):
       event = self._event_queue.get(block=False, timeout=0)
       if isinstance(event, SpiderClosed):
         self._queue_check_timer.stop()
+        self._progress_spider.setMinimum(0)
+        self._progress_spider.setMaximum(100)
         self._progress_spider.setValue(100)
         self._btn_stop_spider.setEnabled(False)
-        """Do more stuff here to update the gui"""
     while not self._data_queue.empty():
       item = self._data_queue.get(block=False, timeout=0)
-      if not self._favicon_received:
+      if not self._favicon_received: # the first item on the data queue should be the favicon
         favicon_data = item["images"][0]
         self.favicon_received.emit(favicon_data["path"]) # note that icons are not guaranteed to have a path. Not everybody wants to save images
         self._favicon_received = True
         self._spider_id = item["id"]
       else:
+        item.pop("id") # the table has nothing to do with spider ids
         self._data_table.addItem(item)
+      self._item_count += 1
+      self._label_count.setText(self.tr("{0:n} items scraped".format(self._item_count)))
+
+class ContextMenuTabBar(QTabBar):
+  """A tab bar that responds to context menu events
+    it just saves the index of tab that received the 
+    context event
+    Args:
+      contextMenu: the context menu to show on context menu events
+    """
+  
+  def __init__(self, contextMenu, parent=None):
+    super(ContextMenuTabBar, self).__init__(parent)
+    self.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu)
+    self._event_tab_index = None # the tab that received the last context menu event
+    self._context_menu = contextMenu
+    
+  def contextMenuEvent(self, cme):
+    rel_pos = cme.pos()
+    global_pos = self.mapToGlobal(rel_pos)
+    self._context_menu.popup(global_pos)
+    # find the tab that received the mouse click
+    for tab_i in range(self.count()):
+      tab_rect = self.tabRect(tab_i)
+      if tab_rect.contains(rel_pos):
+        self._event_tab_index = tab_i
+        
+  def last_event_tab(self):
+    return self._event_tab_index
+  
+class ContextMenuTabWidget(QTabWidget):
+  def __init__(self, parent=None):
+    super(ContextMenuTabWidget, self).__init__(parent)
+    self._setupContextMenu()
+    
+  def _setupContextMenu(self):
+    from visualscrape.lib.data import ActionStore
+    context_menu = QMenu(self)
+    export_action = NamedAction(self.tr("Export ..."), self, name="export")
+    export_action.triggered.connect(self._requestTabExport)
+    context_menu.addAction(export_action)
+    self.setTabBar(ContextMenuTabBar(context_menu))
+    action_store = ActionStore.get_instance()
+    action_store.register_action(export_action)
+    
+  def _requestTabExport(self):
+    tab_right_clicked_index = self.tabBar().last_event_tab()
+    tab_right_clicked = self.widget(tab_right_clicked_index)
+    tab_right_clicked.export_table()
+    
+class SearchHighlighterLabel(QLabel):
+  """Highlights text using Qt.color instance as long as it's search_changed
+     signal is emitted with search text"""
+  search_changed = Signal(str)
+  
+  def __init__(self, text, highlightColor=Qt.red, parent=None):
+    super(SearchHighlighterLabel, self).__init__(parent)
+    self._original_text = text # keep it because the internal text will have extraneous formatting
+    self.setText(text)
+    self.setWordWrap(True)
+    self._highlight_color = highlightColor
+    self.search_changed.connect(self._updateText)
+    
+  def _updateText(self, searchText):
+    self.setText(self._original_text)
+    if not searchText: # an empty string matches everything
+      return
+    searchText = searchText.strip()
+    query_words = searchText.split()
+    all_in = all([query_word in self.text() for query_word in query_words])
+    if all_in:
+      string_template = self._original_text
+      dot_pos = str(self._highlight_color).rfind('.') + 1
+      highlight_color_string = str(self._highlight_color)[dot_pos:]
+      for query_word in query_words:
+        string_template = string_template.replace(query_word, 
+                              "<font color='{0}'>{1}</font>".format(highlight_color_string, query_word))
+      self.setText(string_template)
+        
