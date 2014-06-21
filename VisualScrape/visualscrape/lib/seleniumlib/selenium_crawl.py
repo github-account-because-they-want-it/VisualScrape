@@ -210,10 +210,3 @@ class SeleniumManager(object):
       thread_to_stop = self.crawler_id_to_thread_map[spiderID]
       thread_to_stop.terminate()
       thread_to_stop.join()    
-      """
-      It seems I had flows when I was thinking about making clicks work.
-      each click should be opened in a new window. I mean each item link.
-      So, each request to a link should produce a new browser. easy.
-      but what about the data handler requests. it'll request with link==None
-      so, i shouldn't create a new browser for it and instead return the existing browser
-      """
