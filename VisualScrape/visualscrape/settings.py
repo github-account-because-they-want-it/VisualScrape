@@ -46,7 +46,7 @@ SITE_PARAMS = {"http://www.machinerytrader.com/":{"REQUEST_DELAY":3,
                                        "REQUEST_DELAY": 1,
                                        "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"},
                
-               "http://www.cars.com":{"PREFERRED_SCRAPER":1, # runs quite well with 1
+               "http://www.cars.com":{"PREFERRED_SCRAPER":2, # runs quite well with 1
                                       "REQUEST_DELAY": 1, 
                                       "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"},
                

@@ -19,11 +19,9 @@ class SeleniumDataHandler(CommonCrawler):
   """Takes the browser instances and the spider path. When called at the right times,
      returns items, item pages and navigation pages"""
   
-  def __init__(self, spider, navBrowser, itemBrowser, spiderPath, spiderId, itemLoader):
+  def __init__(self, spider, spiderPath, spiderId, itemLoader):
     self.spider = spider
     self.pipeline_handler = PipelineHandler(self.spider)
-    self.nav_browser = navBrowser
-    self.item_browser = itemBrowser
     self.path = spiderPath
     self.id = spiderId
     self.item_loader = itemLoader # used to load scraped items
@@ -37,7 +35,7 @@ class SeleniumDataHandler(CommonCrawler):
   def favicon_item(self):
     favicon_item = FaviconItem()
     favicon_item["id"] = self.id
-    parsed_home = urlparse.urlparse(self.nav_browser.current_url)
+    parsed_home = urlparse.urlparse(self.spider.get_nav_browser().current_url)
     favicon_url = urlparse.urljoin(parsed_home.scheme + "://" + parsed_home.netloc, "favicon.ico")
     downloaded_path = download_image(favicon_url, self._get_image_save_path())
     favicon_item["images"] = [{"path": downloaded_path, "url":favicon_url}]
@@ -49,7 +47,8 @@ class SeleniumDataHandler(CommonCrawler):
     item_selector = self.path[-1].item_selector
     key_value_selectors = item_selector.key_value_selectors
     # this is a duplicate from scrapy item parser. Probably refactor
-    response = TextResponse(self.item_browser.current_url, body=self.item_browser.page_source, encoding="utf-8")
+    item_browser = self.spider.get_item_browser()
+    response = TextResponse(item_browser.current_url, body=item_browser.page_source, encoding="utf-8")
     item_info = self.get_item_info(key_value_selectors, response)
     # dynamically create the item from collected keys. The item must be created before the item loader
     item = InterestItem(item_info["keys"])
@@ -77,8 +76,8 @@ class SeleniumDataHandler(CommonCrawler):
       restrict = main_page.similar_pages_restrict
       new_links = self._get_links_from_selector(similar_pages_selector, restrict, unique=True)
     # append the current browser url to the visited nav and don't send it to the browser
-    if not self.nav_browser.current_url in self.navigation_extracted:
-      self.navigation_extracted.append(self.nav_browser.current_url)
+    if not self.spider.get_nav_browser().current_url in self.navigation_extracted:
+      self.navigation_extracted.append(self.spider.get_nav_browser().current_url)
     return new_links, action
     
   def _convert_selector(self, selector):
@@ -88,14 +87,14 @@ class SeleniumDataHandler(CommonCrawler):
         #use the first selector that returns elements
         ref_pos = selector.rfind("/@")
         if ref_pos: selector = selector[:ref_pos]
-        if len(self.nav_browser.find_elements_by_xpath(selector)):
+        if len(self.spider.get_nav_browser().find_elements_by_xpath(selector)):
           return selector
     elif "::" in selector and selector.type == FieldSelector.CSS:
       # strip of the last :: occurence to the end
       ref_pos = selector.rfind("/::")
       if ref_pos: 
         selector = selector[:ref_pos]
-        if len(self.nav_browser.find_elements_by_css_selector(selector)):
+        if len(self.spider.get_nav_browser().find_elements_by_css_selector(selector)):
           return selector
     else: return selector # no change
   
@@ -110,7 +109,7 @@ class SeleniumDataHandler(CommonCrawler):
        Returns href strings or selenium webdriver elements, according to selector type"""
     if selector.action == UrlSelector.ACTION_VISIT:
       #use scrapy facilities to extract your hrefs. Also, the visit action implies that hrefs are unique
-      response = TextResponse(self.nav_browser.current_url, body=self.nav_browser.page_source, encoding="utf-8")
+      response = TextResponse(self.spider.get_nav_browser().current_url, body=self.spider.get_nav_browser().page_source, encoding="utf-8")
       if selector.type == FieldSelector.REGEX:
         extractor = SgmlLinkExtractor(allow=selector,
                                     restrict_xpaths=restrict if restrict else ())
@@ -125,7 +124,7 @@ class SeleniumDataHandler(CommonCrawler):
           if not "/@href" in selector: selector = selector + "/@href"
           links = sel.xpath(selector).extract()
         # after all, canonicalize, because css and xpath are not canoned automatically like sgml...
-        links = [URL(link).canonicalize(self.nav_browser.current_url) for link in links]
+        links = [URL(link).canonicalize(self.spider.get_nav_browser().current_url) for link in links]
       if unique:
         new_links = [link for link in links if link not in self.navigation_extracted]
         self.navigation_extracted.extend(new_links)
@@ -137,9 +136,9 @@ class SeleniumDataHandler(CommonCrawler):
       if selector.type == FieldSelector.REGEX:
         pass # no regex links for selenium for now
       elif selector.type == FieldSelector.CSS:
-        links = self.nav_browser.find_elements_by_css_selector(selector)
+        links = self.spider.get_nav_browser().find_elements_by_css_selector(selector)
       elif selector.type == FieldSelector.XPATH:
-        links = self.nav_browser.find_elements_by_xpath(selector)
+        links = self.spider.get_nav_browser().find_elements_by_xpath(selector)
       if unique:
         links = self._filter_unique_and_save(selector, links)
       return links

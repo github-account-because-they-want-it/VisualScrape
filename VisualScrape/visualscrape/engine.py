@@ -32,12 +32,12 @@ class CrawlEngine(object):
       spider_start_url = sp_info.get_start_url()
       scraper_cls = settings.get_preferred_scraper_for(spider_start_url)
       spider_manager = scraper_cls.get_manager()
-      self.managers.append(spider_manager)
       managers_to_spinfo_map.setdefault(spider_manager, [])
       managers_to_spinfo_map[spider_manager].append(sp_info)
     
     for manager, sp_infos in managers_to_spinfo_map.items():
       manager_inst = manager(sp_infos)
+      self.managers.append(manager_inst)
       manager_inst.start_all()
     
   def register_handler(self, handler):

@@ -11,7 +11,7 @@ from PySide.QtCore import Qt, QPointF, QAbstractTableModel, QSize, QTimer, Signa
 from os import path
 import json, collections
 from visualscrape.ui.viewer.style import search_style
-from visualscrape.ui.viewer.table import ScrapeDataTable
+from visualscrape.ui.viewer.table import SearchTable
 from visualscrape.ui.viewer.dialog import ExportDialog
 from visualscrape.lib.signal import SpiderClosed
 from visualscrape.lib.export import FileExporter
@@ -274,6 +274,7 @@ class SpiderTab(QWidget):
   TIMER_CHECK_INTERVAL = 3000
   favicon_received = Signal(str) # send the url or path to the handler, which should be the tab widget
   stop_spider_signal = Signal(int)
+  became_current = Signal(bool) # tell the table it has become active. it's an interesting property for producers!
   
   def __init__(self, parent=None, **kwargs):
     super(SpiderTab, self).__init__(parent)
@@ -287,6 +288,7 @@ class SpiderTab(QWidget):
     self.initInterface(kwargs)
     self._context_menu = None
     self._setupContextMenu()
+    self.became_current.connect(self._set_table_activity)
     self._queue_check_timer = QTimer()
     self._queue_check_timer.setInterval(self.TIMER_CHECK_INTERVAL)
     self._queue_check_timer.timeout.connect(self._checkQueues)
@@ -294,7 +296,7 @@ class SpiderTab(QWidget):
     
   def initInterface(self, kwargs):
     layout = QGridLayout()
-    self._data_table = ScrapeDataTable(name=kwargs.get("name"))
+    self._data_table = SearchTable(name=kwargs.get("name"))
     self._progress_spider = QProgressBar()
     self._label_count = QLabel(self.tr("0 items scraped"))
     # make it a busy indicator. you don't know when it'll finish 
@@ -349,7 +351,7 @@ class SpiderTab(QWidget):
       if self._queue_check_timer.isActive():
         confirm_stop = QMessageBox(self)
         confirm_stop.setIcon(QMessageBox.Warning)
-        confirm_stop.setStandardButtons(QMessageBox.Yes + QMessageBox.No)
+        confirm_stop.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         confirm_stop.setText(self.tr("Scraping process still running"))
         confirm_stop.setDetailedText(self.tr("Are you sure you want to stop it?"))
         ret = confirm_stop.exec_()
@@ -383,6 +385,10 @@ class SpiderTab(QWidget):
         self._data_table.addItem(item)
       self._item_count += 1
       self._label_count.setText(self.tr("{0:n} items scraped".format(self._item_count)))
+      
+  def _set_table_activity(self, state):
+    self._data_table.set_active(state)
+    
 
 class ContextMenuTabBar(QTabBar):
   """A tab bar that responds to context menu events
@@ -412,9 +418,12 @@ class ContextMenuTabBar(QTabBar):
     return self._event_tab_index
   
 class ContextMenuTabWidget(QTabWidget):
+  """A tab widget witha a custom tab bar.
+     Also acts as a notifier for tabs that they have become active or inactive"""
   def __init__(self, parent=None):
     super(ContextMenuTabWidget, self).__init__(parent)
     self._setupContextMenu()
+    self.currentChanged.connect(self._notifyTabs)
     
   def _setupContextMenu(self):
     from visualscrape.lib.data import ActionStore
@@ -431,10 +440,16 @@ class ContextMenuTabWidget(QTabWidget):
     tab_right_clicked = self.widget(tab_right_clicked_index)
     tab_right_clicked.export_table()
     
+  def _notifyTabs(self, tabIndex):
+    for tab_index in range(self.count()):
+      if tab_index == tabIndex: self.widget(tab_index).became_current.emit(True)
+      else: self.widget(tab_index).became_current.emit(False)
+    
 class SearchHighlighterLabel(QLabel):
   """Highlights text using Qt.color instance as long as it's search_changed
      signal is emitted with search text"""
   search_changed = Signal(str)
+  search_cancelled = Signal()
   
   def __init__(self, text, highlightColor=Qt.red, parent=None):
     super(SearchHighlighterLabel, self).__init__(parent)
@@ -443,20 +458,42 @@ class SearchHighlighterLabel(QLabel):
     self.setWordWrap(True)
     self._highlight_color = highlightColor
     self.search_changed.connect(self._updateText)
+    self.search_cancelled.connect(lambda: self.setText(self._original_text))
     
   def _updateText(self, searchText):
     self.setText(self._original_text)
     if not searchText: # an empty string matches everything
       return
     searchText = searchText.strip()
-    query_words = searchText.split()
-    all_in = all([query_word in self.text() for query_word in query_words])
-    if all_in:
-      string_template = self._original_text
-      dot_pos = str(self._highlight_color).rfind('.') + 1
-      highlight_color_string = str(self._highlight_color)[dot_pos:]
-      for query_word in query_words:
-        string_template = string_template.replace(query_word, 
-                              "<font color='{0}'>{1}</font>".format(highlight_color_string, query_word))
-      self.setText(string_template)
-        
+    string_template = self._original_text
+    highlight_color_string = self._getColorString(self._highlight_color)
+    string_template = string_template.replace(searchText, 
+                          "<font color='{0}'>{1}</font>".format(highlight_color_string, searchText))
+    self.setText(string_template)
+     
+  def _getColorString(self, color):
+    dot_pos = str(color).rfind('.') + 1
+    return str(color)[dot_pos:]   
+
+class SearchReplaceLabel(SearchHighlighterLabel):
+  
+  replace_committed = Signal(str, str)
+  
+  def __init__(self, text, replaceColor=Qt.yellow, highlightColor=Qt.red, replaceTimeout=2):
+    super(SearchReplaceLabel, self).__init__(text, highlightColor)
+    self._replace_color = replaceColor
+    self.replace_committed.connect(self._replaceText)
+    self._replacement_fade_timer = QTimer()
+    self._replacement_fade_timer.setSingleShot(replaceTimeout)
+    self._replacement_fade_timer.timeout.connect(self._putOriginalText)
+    
+  def _replaceText(self, before, after):
+    self.setText(self._original_text) # replace formatting after recent find activity
+    self._original_text = self._original_text.replace(before, after)
+    replacement = self._original_text.replace(before, "<font color='{0}'>{1}</font>".\
+                                              format(self._getColorString(self._replace_color), after))
+    self.setText(replacement)
+    self._replacement_fade_timer.start()
+    
+  def _putOriginalText(self):
+    self.setText(self._original_text)

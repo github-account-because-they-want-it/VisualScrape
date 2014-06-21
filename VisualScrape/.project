@@ -3,6 +3,7 @@
 	<name>VisualScrape</name>
 	<comment></comment>
 	<projects>
+		<project>CarScraper</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

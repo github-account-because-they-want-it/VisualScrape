@@ -7,7 +7,7 @@ from PySide.QtGui import (QMainWindow, QGridLayout, QTabWidget, QIcon, QWidget, 
 from PySide.QtCore import Signal
 from functools import partial
 from visualscrape.ui.viewer.support import ScrapeSearchLineEdit, SpiderTab, ContextMenuTabWidget
-from visualscrape.ui.viewer.dialog import ExportDialog
+from visualscrape.ui.viewer.dialog import ExportDialog, FindReplaceDialog
 from visualscrape.lib.export import FileExporter
 from visualscrape.lib.data import DataStore, ProducerMixin
 
@@ -31,6 +31,7 @@ class VisualScrapeWindow(QMainWindow):
     central_widget.setLayout(layout)
     self.setCentralWidget(central_widget)
     self._setupMenuBar()
+    self._setupFindDialog()
     
   def _setupMenuBar(self):
     menu_bar = self.menuBar()
@@ -54,6 +55,12 @@ class VisualScrapeWindow(QMainWindow):
     action_about = QAction(self.tr("About"), self)
     action_about.triggered.connect(self._showAboutDialog)
     menu_help.addAction(action_about) 
+    
+  def _setupFindDialog(self):
+    self._find_dialog = FindReplaceDialog(self)
+    self._find_dialog.find_text_changed.connect(self._tellActiveTableToSearch)
+    self._find_dialog.replace_committed.connect(self._tellActiveTableToReplace)
+    self._find_dialog.find_cancelled.connect(self._tellActiveTableSearchCancelled)
     
   def closeEvent(self, ce):
     # ask all tabs to close
@@ -83,9 +90,11 @@ class VisualScrapeWindow(QMainWindow):
     if response is True:
       # now make sure the user doesn't want the data
       confirm_close = QMessageBox(self)
-      confirm_close.setStandardButtons(QMessageBox.Yes + QMessageBox.No)
-      confirm_close.setText(self.tr("Close {0}".format(self._tab_widget.tabText(tabIndex))))
-      confirm_close.setDetailedText(self.tr("Are you sure?"))
+      confirm_close.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+      confirm_close.setIcon(QMessageBox.Warning)
+      confirm_close.setText(self.tr("{0} data may be lost".format(self._tab_widget.tabText(tabIndex))))
+      confirm_close.setInformativeText(self.tr("Are you sure?"))
+      confirm_close.setWindowTitle(self.tr("Warning"))
       ret = confirm_close.exec_()
       if ret == QMessageBox.Yes:
         self._tab_widget.removeTab(tabIndex)
@@ -117,7 +126,7 @@ class VisualScrapeWindow(QMainWindow):
     if export_info:
       # get all tab names and export all of them
       store = DataStore.get_instance()
-      for i in self._tab_widget.count():
+      for i in range(self._tab_widget.count()):
         tab_name = self._tab_widget.tabText(i) # tab name is also the table name in the store
         # get the matching producer
         for producer in store:
@@ -129,7 +138,28 @@ class VisualScrapeWindow(QMainWindow):
     else: pass # do nothing if the export info is invalid (the user chose no folder)
   
   def _showFindReplaceDialog(self):
-    pass
+    self._find_dialog.show()
   
   def _showAboutDialog(self):
     pass
+  
+  def _tellActiveTableToSearch(self, searchText):
+    data_store = DataStore.get_instance()
+    for producer in data_store:
+      if producer.type == ProducerMixin.TYPE_TABLE and producer.is_active():
+        producer.search_changed.emit(searchText)
+        break
+      
+  def _tellActiveTableToReplace(self, before, after):
+    data_store = DataStore.get_instance()
+    for producer in data_store:
+      if producer.type == ProducerMixin.TYPE_TABLE and producer.is_active():
+        producer.replace_committed.emit(before, after)
+        break
+      
+  def _tellActiveTableSearchCancelled(self):
+    data_store = DataStore.get_instance()
+    for producer in data_store:
+      if producer.type == ProducerMixin.TYPE_TABLE and producer.is_active():
+        producer.search_cancelled.emit()
+        break

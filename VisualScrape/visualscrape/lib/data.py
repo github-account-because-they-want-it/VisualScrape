@@ -23,6 +23,14 @@ class ProducerMixin(object):
   def get_visible_data():
     return None
   
+  @staticmethod
+  def is_active():
+    return False
+  
+  @staticmethod
+  def set_active():
+    pass
+  
   def __init__(self, *args, **kwargs):
     # producer properties that might interest consumers
     self.name = kwargs.get("name", '')
@@ -70,3 +78,6 @@ class ActionStore(list):
     if not cls._instance:
       cls._instance = ActionStore()
     return cls._instance
+  """
+  I want that when the selected tab changes, the tables get notified 
+  """

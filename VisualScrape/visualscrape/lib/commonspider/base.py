@@ -4,7 +4,6 @@ Created on Jun 18, 2014
 '''
 from scrapy.selector import Selector
 from visualscrape.lib.selector import FieldSelector, ContentSelector, ImageSelector
-from visualscrape.lib.scrapylib.log import log
 import re
 
 class CommonCrawler(object):
@@ -39,6 +38,7 @@ class CommonCrawler(object):
         restricted = sel.css(value_selector.restrict_selector)
         if restricted: restrict_selector = restricted[0] # get the first tag that matches the restrict selector
         else: 
+          from visualscrape.lib.scrapylib.log import log
           log.warn("Content restrict selector returned empty: %s" % value_selector.restrict_selector)
           continue
         # select all subelements of restricted and check them against the regex
