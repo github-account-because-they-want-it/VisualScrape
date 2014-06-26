@@ -3,6 +3,9 @@ Created on Jun 19, 2014
 @author: Mohammed Hamdy
 '''
 from PySide.QtGui import QAction
+import cPickle as pickle, os.path as pth
+from visualscrape.config import settings
+from visualscrape.lib.commonspider.base import SpiderTypes
 
 class ProducerMixin(object):
   """
@@ -78,6 +81,74 @@ class ActionStore(list):
     if not cls._instance:
       cls._instance = ActionStore()
     return cls._instance
+ 
+class SpiderConfigManager(object):
   """
-  I want that when the selected tab changes, the tables get notified 
+  Provides an interface to spider state 
   """
+  SPIDERNAME_ORDER = 1
+  SPIDERTYPE_ORDER = 2
+  VISITED_ORDER = 3
+  @classmethod
+  def updateSpiderInformation(cls, item):
+    pickled_info = cls.get_config_file_for(item.get("_spidername"))
+    if pth.exists(pickled_info):
+      f = open(pickled_info, "rb")
+      current_visited = cls._get_scraped_urls(f)
+      f.close()
+    else:
+      current_visited = []
+    new_scraped = item.get("_scrapedurl")
+    current_visited.append(new_scraped)
+    pickled_out = open(pickled_info, "wb")
+    cls._dump_stuff(pickled_out, item, scraped=current_visited)
+    pickled_out.close()
+    
+  @classmethod
+  def is_scrapy_spider(cls, spiderName):
+    config_file = open(cls.get_config_file_for(spiderName), "rb")
+    spider_type = cls._get_spider_type(config_file)
+    return spider_type == SpiderTypes.TYPE_SCRAPY
+  
+  @classmethod
+  def is_selenium_spider(cls, spiderName):
+    return not cls.is_scrapy_spider(spiderName)
+  
+  @staticmethod
+  def get_config_path():
+    return settings._CONFIG_PATH
+  
+  @classmethod
+  def get_config_file_for(cls, spiderName):
+    config_file = spiderName.lower() + ".bin"
+    return pth.join(cls.get_config_path(), config_file)
+    
+  @classmethod
+  def get_info_file_for(cls, spiderName):
+    """The info file contains currently the SpiderInfo object"""
+    info_file = spiderName.lower() + "_info.bin" # this info file holds the SpiderInfo object
+    return pth.join(cls.get_config_path(), info_file)
+    
+  @classmethod
+  def config_exists_for(cls, spiderName):
+    return pth.exists(cls.get_config_file_for(spiderName))
+    
+  @classmethod
+  def _get_spider_type(cls, configFile):
+    pickle.load(configFile)
+    return pickle.load(configFile)
+  
+  @classmethod
+  def _get_scraped_urls(cls, configFile):
+    for _ in range(cls.VISITED_ORDER):
+      res = pickle.load(configFile)
+    return res
+  
+  @classmethod
+  def _dump_stuff(cls, pickleFile, item, **kwargs):
+    """The central function to make a complete config dump"""
+    pickleFile.dump(item.get("_spidername"))
+    pickleFile.dump(item.get("_spidertype"))
+    visited = kwargs.get("scraped")
+    if visited: pickleFile.dump(visited)
+    

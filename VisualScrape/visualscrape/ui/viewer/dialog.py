@@ -4,6 +4,7 @@ Created on Jun 18, 2014
 '''
 from PySide.QtGui import QDialog, QFileDialog, QGridLayout, QLabel, QPushButton, QComboBox,\
   QStringListModel, QMessageBox, QLineEdit, QCheckBox, QApplication
+from PySide.QtCore import Qt
 from visualscrape.lib.export import FileExporter
 import os
 from PySide.QtCore import Signal
@@ -73,7 +74,7 @@ class AlreadyExistsDialog(QMessageBox):
   CANCEL = 2
   def __init__(self, fname, parent=None):
     super(AlreadyExistsDialog, self).__init__(parent)
-    self.setText(self.tr("{0} already exists".format(os.path.normpath(fname))))
+    self.setText(self.tr("{0} already exists".format(os._spider_path.normpath(fname))))
     self.setStandardButtons(QMessageBox.Cancel)
     self.button_overwrite = self.addButton(self.tr("Overwrite"), QMessageBox.ActionRole)
     self.setWindowTitle(self.tr("Warning"))
@@ -131,6 +132,12 @@ class FindReplaceDialog(QDialog):
     self.setLayout(layout)
     self.setWindowTitle(self.tr("Find/Replace"))
     
+  def keyPressEvent(self, kpe):
+    if kpe.key() == Qt.Key.Key_Enter:
+      self._emitFind()
+    else:
+      super(FindReplaceDialog, self).keyPressEvent(kpe)
+    
   def _findEdited(self, text):
     if self.checkbox_dynamic_find.isChecked():
       self.find_text_changed.emit(text)
@@ -155,3 +162,6 @@ class FindReplaceDialog(QDialog):
   def _cancel(self):
     self.find_cancelled.emit()
     self.hide()
+    
+  def closeEvent(self, ce):
+    self._cancel()

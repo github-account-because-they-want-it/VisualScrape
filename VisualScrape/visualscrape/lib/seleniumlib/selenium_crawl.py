@@ -17,36 +17,36 @@ from visualscrape.lib.signal import *
 import sys, time, traceback
 from visualscrape.lib.selector import UrlSelector
 from visualscrape.lib.event_handler import EventConfigurator
+from visualscrape.lib.commonspider.base import CommonCrawler
+from visualscrape.lib.seleniumlib.handler import SeleniumDataHandlerMixin
+from visualscrape.lib.data import SpiderConfigManager
 
-class SeleniumCrawler(EventConfigurator):
+class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin):
   LINK_TYPE_CLICK = 1
   LINK_TYPE_GET = 2
   
-  def __init__(self, spiderInfo, spiderID, *args, **kwargs):
-    super(SeleniumCrawler, self).__init__(spiderInfo, spiderID, *args, **kwargs)
-    self._spider_info = spiderInfo
-    self.path = spiderInfo.spider_path
-    self.id = spiderID
-    self.name = spiderInfo.spider_name
-    self.favicon_required = kwargs.get("downloadFavicon", True)
-    self.item_loader = kwargs.get("itemLoader")
-    self.data_handler = None
+  def __init__(self, spiderInfo, spiderID, **kwargs):
+    EventConfigurator.__init__(self, spiderInfo, spiderID, **kwargs)
+    CommonCrawler.__init__(self, spiderInfo, spiderID, kwargs)
+    SeleniumDataHandlerMixin.__init__(self)
+    
     self._item_browser_established = False
     self._link_types = None
+    self._terminated = False
     
   def start(self):
     """Manages the crawling process"""
     try:
       self._prepare_browsers()
-      if self.event_handler: self.event_handler.emit(SpiderStarted(self.id))
-      for step in self.path:
+      if self.event_handler: self.event_handler.emit(SpiderStarted(self._id))
+      for step in self._spider_path:
         if isinstance(step, MainPage):
           break
         self._take_step(step)
       if self.favicon_required:
-        favicon_item = self.data_handler.favicon_item() #send it to the item-scraped handler
+        favicon_item = self.favicon_item() #send it to the item-scraped handler
       self._crawl_current_nav()
-      more_nav, action = self.data_handler.more_navigation_pages()
+      more_nav, action = self.more_navigation_pages()
       while more_nav:
         for nav_page in more_nav:
           if action == UrlSelector.ACTION_VISIT:
@@ -55,7 +55,7 @@ class SeleniumCrawler(EventConfigurator):
             nav_page.click()
             self._wait(self.get_nav_browser())
           self._crawl_current_nav()
-        more_nav = self.data_handler.more_navigation_pages()
+        more_nav = self.more_navigation_pages()
       self._finishoff()
     except KeyboardInterrupt:
       log.debug("Interrupted. Exiting...")
@@ -66,22 +66,26 @@ class SeleniumCrawler(EventConfigurator):
     finally:
       self._finishoff()
   
+  def resume(self):
+    self._prepare_browsers()
+    self.resume()
+    self.start()
+  
   def _finishoff(self):
     self.get_nav_browser().quit()
     self._close_item_browser()
     self._display.stop() if self._display else None
-    if self.event_handler: self.event_handler.emit(SpiderClosed(self.id))
+    self._stop()
+    if self.event_handler: self.event_handler.emit(SpiderClosed(self._id))
     
   def _prepare_browsers(self):
     # check settings for our start url
-    from visualscrape.lib.seleniumlib.handler import SeleniumDataHandler
+    from visualscrape.lib.seleniumlib.handler import SeleniumDataHandlerMixin
     profile=None
-    if settings.SITE_PARAMS.by(self.path[0]).get("COOKIES_ENABLED", None) is False:
+    if settings.SITE_PARAMS.by(self._spider_path[0]).get("COOKIES_ENABLED", None) is False:
       profile = webdriver.FirefoxProfile(profile_directory=r"C:\Users\Tickler\AppData\Local\Temp\prof_dir")
       profile.set_preference("network.cookie.cookieBehavior", 1)
     self.nav_browser = webdriver.Firefox(firefox_profile=profile)
-    self.data_handler = SeleniumDataHandler(self, self.path, 
-                                            self.id, self.item_loader)
     #try to run headless on linux
     if sys.platform.startswith("linux"):
       try:
@@ -114,14 +118,18 @@ class SeleniumCrawler(EventConfigurator):
   
   def _crawl_current_nav(self):
     """Scrape all items on the current items page"""
-    current_item_pages, action = self.data_handler.item_pages()
+    current_item_pages, action = self.item_pages()
     for item_page in current_item_pages:
+      # clean termination
+      if self._terminated:
+        self._finishoff()
+        return
       if action == UrlSelector.ACTION_VISIT:
         self.get_item_browser().get(item_page)
       elif action == UrlSelector.ACTION_CLICK:
         item_browser = self.get_item_browser(item_page, action) # this opens the link automatically
-      time.sleep(settings.SITE_PARAMS.by(self.nav_browser.current_url).get("REQUEST_DELAY", 0)) # get the delay from settings and apply it
-      item = self.data_handler.next_item()
+      time.sleep(self.request_delay) # get the delay from settings and apply it
+      item = self.next_item()
       
   def _wait(self, browser, elem="body"):
     try: 
@@ -179,6 +187,10 @@ class SeleniumCrawler(EventConfigurator):
     self.nav_browser.switch_to.window(self.nav_browser.window_handles[1])
     self._wait(self.nav_browser)
     
+  def terminate(self):
+    # terminate without keeping state
+    self._terminated = True
+    
   @staticmethod
   def get_manager():
     return SeleniumManager
@@ -188,25 +200,56 @@ class SeleniumManager(object):
   
   def __init__(self, spidersInfo):
     self.spiders_info = spidersInfo
-    self.crawler_id_to_thread_map = {}
+    self.crawler_id_to_config_map = {}
     for (spid, sp_info) in enumerate(spidersInfo):
       # start ids at 100 for selenium to make it's ids distinct from scrapy. 
-      # TODO: read the start id from settings
-      spid = spid + 100
-      crawler = SeleniumCrawler(sp_info, spid, 
-                                downloadFavicon=settings.DOWNLOAD_FAVICON.value(),
-                                itemLoader=settings.get_item_loader_for(sp_info.spider_path[0]))
-      crawl_thread = Thread(target=crawler.start, name="SeleniumThread#{0}".format(spid + 1))
-      self.crawler_id_to_thread_map[spid] = crawl_thread
+      # TODO: read the start _id from settings
+      self.config_spider(spid, sp_info)
+      
+  def config_spider(self, spid, sp_info):
+    crawler = SeleniumCrawler(sp_info, spid + 100)
+    crawl_thread = Thread(target=crawler.start, name="SeleniumThread#{0}".format(spid + 1))
+    self.crawler_id_to_config_map[spid] = {"info":sp_info, "thread":crawl_thread, "spider":crawler}
       
   def start_all(self):
-    for crawl_thread in self.crawler_id_to_thread_map.values(): 
+    for crawl_config in self.crawler_id_to_config_map.values(): 
+      crawl_thread = crawl_config["thread"]
       crawl_thread.start()
   
-  def stop_spider(self, spiderID):
-    if not spiderID in self.crawler_id_to_thread_map:
+  def stop_spider(self, spiderID, keepState):
+    if not spiderID in self.crawler_id_to_config_map:
       return
     else:
-      thread_to_stop = self.crawler_id_to_thread_map[spiderID]
-      thread_to_stop.terminate()
-      thread_to_stop.join()    
+      config_to_stop = self.crawler_id_to_config_map[spiderID]
+      spider_to_stop = config_to_stop["spider"]
+      spider_to_stop.terminate(keepState)    # because there's no thread termination
+      
+  def restart_spider(self, spiderID, keepState=True):
+    if not spiderID in self.crawler_id_to_config_map:
+      return
+    self.stop_spider(spiderID, keepState)
+    prev_config = self.crawler_id_to_config_map.pop(spiderID)
+    prev_info = prev_config["info"]
+    self.config_spider(spiderID, prev_info)
+    self.crawler_id_to_config_map[spiderID]["thread"].start()
+    
+  def temp_pause_spider(self, spiderID):
+    if self.spider_belongs(spiderID):
+      spider_to_pause = self.crawler_id_to_config_map[spiderID]["spider"]
+      spider_to_pause.data_handler.temp_pause() # avoid adding temp_pause method to the spider
+      
+  def temp_resume_spider(self, spiderID):
+    if self.spider_belongs(spiderID):
+      spider_to_resume = self.crawler_id_to_config_map[spiderID]
+      spider_to_resume.data_handler.temp_resume()
+      
+  def spider_belongs(self, spiderID):
+    return spiderID in self.crawler_id_to_config_map
+  
+  def resume_spider(self, spiderName):
+    # the spider is resumed by it's name because this is what's on disk
+    if SpiderConfigManager.is_selenium_spider(spiderName):
+      spid = max(self.crawler_id_to_config_map.keys()) + 1 # the new spider id
+      self.config_spider(spid, sp_info=None)
+      spider_config = self.crawler_id_to_config_map[spid]
+      spider_config["thread"].start()

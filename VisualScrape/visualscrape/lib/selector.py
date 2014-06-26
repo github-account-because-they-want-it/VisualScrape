@@ -97,7 +97,7 @@ class Merge(object):
     self.merge_chars = mergeChars
     
   def __unicode__(self):
-    return "<Merge operation at 0x%0x>" % id(self)
+    return "<Merge operation at 0x%0x>" % _id(self)
 
 class PostProcessing(list):
   """A list of post processing information objects"""

@@ -83,4 +83,4 @@ class MainPage(object):
     self.similar_pages_restrict = similarPagesXpathRestrict 
     
   def __str__(self):
-    return "<MainPage: at {0}>".format(id(self))
+    return "<MainPage: at {0}>".format(_id(self))

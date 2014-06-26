@@ -6,6 +6,7 @@ import os
 from visualscrape.config import settings
 from visualscrape.lib.signal import ItemScraped
 from visualscrape.lib.selector import Merge
+from visualscrape.lib.commonspider.base import SpiderTypes
 
 class FilterFieldsPipeline(object):
   """
@@ -17,25 +18,25 @@ class FilterFieldsPipeline(object):
   def process_item(self, item, spider):
     if item.get("image_urls"):
       item.pop("image_urls")
-    if item.get("postinfo"):
-      item.pop("postinfo")
+    if item.get("_postinfo"):
+      item.pop("_postinfo")
       
     return item
 
 
 class CanonicalizeImagePathPipeline(object):
-  """Images "path" field returned from scrapy is not canonicalized, making
+  """Images "_spider_path" field returned from scrapy is not canonicalized, making
      it useless to locate the image"""
   
   def process_item(self, item, spider):
     images = item.get("images", None)
     if images:
       for image in images:
-        image_path = os.path.normpath(image.get("path"))
-        parent_folder = os.path.normpath(settings.IMAGES_STORE.value())
+        image_path = os._spider_path.normpath(image.get("_spider_path"))
+        parent_folder = os._spider_path.normpath(settings.IMAGES_STORE.value())
         if not parent_folder in image_path:
-          image_path = os.path.join(parent_folder, image_path)
-          image["path"] = image_path
+          image_path = os._spider_path.join(parent_folder, image_path)
+          image["_spider_path"] = image_path
     return item
 
 class PushToHandlerPipeline(object):
@@ -47,7 +48,7 @@ class PushToHandlerPipeline(object):
 class ItemPostProcessor(object):
   
   def process_item(self, item, spider):
-    pp_info = item.get("postinfo")
+    pp_info = item.get("_postinfo")
     if pp_info:
       for operation in pp_info:
         if isinstance(operation, Merge):
@@ -58,3 +59,8 @@ class ItemPostProcessor(object):
           item.fields[operation.output_name] = {}
           item[operation.output_name] = merged
     return item
+  
+class SaveSpiderProgressPipeline(object):
+  
+  def process_item(self, item, spider):
+    

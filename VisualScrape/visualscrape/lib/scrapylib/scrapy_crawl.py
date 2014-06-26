@@ -7,42 +7,33 @@ from scrapy.http import Request, FormRequest
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import Selector
 from scrapy import signals
-from multiprocessing import Process
 from threading import Thread
-import urlparse, re
+import urlparse, time
 from visualscrape.lib.path import URL, Form
 from visualscrape.lib.commonspider.base import CommonCrawler
 from visualscrape.config import settings
 from visualscrape.lib.item import InterestItem, FaviconItem
-from visualscrape.lib.selector import FieldSelector, ImageSelector, ContentSelector
+from visualscrape.lib.selector import FieldSelector
 from visualscrape.lib.signal import SpiderStarted, SpiderClosed
 from visualscrape.lib.event_handler import EventConfigurator
-from .log import log
+from visualscrape.lib.data import SpiderConfigManager
 
 class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
   """
-  This spider now doesn't support multiple urls per path, something 
+  This spider now doesn't support multiple urls per _spider_path, something 
   like start_urls=[url1, more than 1 url...]
   """
   name = "ScrapyCrawler"
-  def __init__(self, spiderInfo, spiderID, name="ScrapyCrawler", *args, **kwargs):
-    EventConfigurator.__init__(self, spiderInfo, spiderID, name, *args, **kwargs)
-    self._spider_info = spiderInfo
-    # prevent the handler from being pickled into the spider process. It's not needed anymore after EventConfigurator.__init__
-    self._spider_info.handler = None 
-    self.name = spiderInfo.spider_name
-    self.request_delay = kwargs.get("requestDelay", 1) #scrapy uses something between .5 and 1.5
-    self.path = spiderInfo.spider_path
-    self.id = spiderID # this is a public property
+  def __init__(self, spiderInfo, spiderID, name="ScrapyCrawler", **kwargs):
+    EventConfigurator.__init__(self, spiderInfo, spiderID, name, **kwargs)
+    CommonCrawler.__init__(self, spiderInfo, spiderID, name, kwargs)
     self.path_index = 0
-    self.favicon_required = kwargs.get("downloadFavicon", True) #the favicon for the scraped site will be added to the first item
-    self.item_loader = kwargs.get("itemLoader")
     self.favicon_item = None
   
   def start_requests(self):
     #this might not work as per docs if it returns items. see Spiders page
-    if self.event_handler: self.event_handler.emit(SpiderStarted(self.id))
-    start_path = self.path[0]
+    if self.event_handler: self.event_handler.emit(SpiderStarted(self._id))
+    start_path = self._spider_path[0]
     if self.favicon_required: #the first item contains only the favicon
       #obtain the favicon url
       start_url = start_path if isinstance(start_path, URL) else start_path.url
@@ -50,18 +41,18 @@ class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
       favicon_url = urlparse.urljoin(url_components.scheme + "://" + url_components.netloc, "favicon.ico")
       favicon_item = FaviconItem()
       favicon_item["image_urls"] =  [favicon_url]
-      favicon_item["id"] =  self.id
+      favicon_item["_id"] =  self._id
       self.favicon_item = favicon_item #assign it to be returned later. can't return here
     return self._take_step()
   
   def parse_intermediate(self, response):
-    """This should continue until there's only one item in self.path which is
+    """This should continue until there's only one item in self._spider_path which is
        MainPage object"""
     return self._take_step()
     
   def parse_item_pages(self, response):
     """Gets the pages of items from a MainPage"""
-    main_page = self.path[-1]
+    main_page = self._spider_path[-1]
     similar_pages_selector = main_page.similar_pages_selector
     similar_pages_restrict = main_page.similar_pages_restrict
     # i think yield from syntax would've helped me refactor the next section. But it's only in 3.3
@@ -69,7 +60,7 @@ class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
       similar_nav = self._links_from_selector(response, similar_pages_selector, similar_pages_restrict)
       for nav in similar_nav: yield Request(nav, dont_filter=False, callback=self.parse_item_pages) # the extracted links can well have their crawled friends
       
-    item_page_selector = self.path[-1].item_page_selector
+    item_page_selector = self._spider_path[-1].item_page_selector
     item_pages = self._links_from_selector(response, item_page_selector, restrict=None)
     for request in [Request(page, callback=self.parse_items) for page in item_pages]:
       yield request
@@ -78,7 +69,10 @@ class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
     if self.favicon_item:
       yield self.favicon_item
       self.favicon_item = None
-    item_selector = self.path[-1].item_selector
+    # check temporary pausing
+    while self._temp_paused:
+      time.sleep(self._sleep_timeout)
+    item_selector = self._spider_path[-1].item_selector
     key_value_selectors = item_selector.key_value_selectors
     item_info = self.get_item_info(key_value_selectors, response)
     item = InterestItem(item_info["keys"])
@@ -87,8 +81,8 @@ class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
     yield item
     
   def _take_step(self):
-    step = self.path.pop(0)
-    next_step = self.path[0]
+    step = self._spider_path.pop(0)
+    next_step = self._spider_path[0]
     callback = self.parse_intermediate if isinstance(next_step, (URL, Form)) \
        else self.parse_item_pages
     if isinstance(step, URL):
@@ -118,8 +112,9 @@ class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
         links = sel.xpath(selector).extract()
       # canonicalize ...
       links = [URL(link).canonicalize(response.url) for link in links]
-    return links
-  
+      if self._resumed:
+        links = [link for link in links if link not in self._visited_urls_before_shutdown]
+    return links  
   
   @staticmethod      
   def get_manager():
@@ -143,7 +138,7 @@ class ScrapyManager(object):
     os.environ["SCRAPY_SETTINGS_MODULE"] = "visualscrape.settings"
     self.spiders_info = spidersInfo
     self.closed_spiders = 0
-    self._ids_to_crawlers_map = {}
+    self._ids_to_crawlers_map = {} # id : {spider, crawler}
     self._crawl_thread = Thread(target=self.run_spiders)
     
   def start_all(self):
@@ -151,28 +146,90 @@ class ScrapyManager(object):
     
   def run_spiders(self):
     """Currently, all the spiders are run within the same process"""
+    """DAMMIT. this method depends on spider info to be available, while when
+       resuming this is not true until the spider is initialized
+       What should I do?. """
     log.start(loglevel=log.DEBUG)
-    for (id, sp_info) in enumerate(self.spiders_info):
-      spider = ScrapyCrawler(sp_info, id, 
-                             downloadFavicon=settings.DOWNLOAD_FAVICON.value(),
-                             itemLoader=settings.get_item_loader_for(sp_info.spider_path[0]),
-                             requestDelay=settings.SITE_PARAMS.by(sp_info.spider_path[0]).get("REQUEST_DELAY", 1))
-      proj_settings = get_project_settings()
-      crawler = Crawler(proj_settings)
-      self._ids_to_crawlers_map[id] = crawler
-      # connect each spider's closed signal to self. When all spiders done, stop the reactor
-      crawler.signals.connect(self.spider_closed, signal=signals.spider_closed) # i do not really now if that is appended or overwritten
-      crawler.configure()
-      crawler.crawl(spider)
-      crawler.start()
+    for (spid, sp_info) in enumerate(self.spiders_info):
+      spider = self._createSpider(spid, sp_info)
+      self.config_spider(spid, spider)
     reactor.run()
     
-  def stop_spider(self, spiderID):
-    if spiderID in self._ids_to_crawlers_map: # the id may not belong to a scrapy spider, so check it 
-      self._ids_to_crawlers_map[spiderID].stop()
+  def resume_all(self):
+    """This method doesn't assume all spider infos are available, and it
+       runs them from configuration instead"""
+    for spider_crawler in self._ids_to_crawlers_map.values():
+      crawler = spider_crawler["crawler"]
+      crawler.start()
+    reactor.run()  
+  
+  def config_spider(self, spid, spider):
+    """The boring startup routine"""
+    proj_settings = get_project_settings()
+    crawler = Crawler(proj_settings)
+    self._ids_to_crawlers_map[spid] = {"spider":spider, "crawler":crawler}
+    # connect each spider's closed signal to self. When all spiders done, stop the reactor
+    crawler.signals.connect(self.spider_closed, signal=signals.spider_closed) # i do not really now if that is appended or overwritten
+    crawler.configure()
+    crawler.crawl(spider)
+    crawler.start()  
+  
+  def stop_spider(self, spiderID, keepState=True):
+    if spiderID in self._ids_to_crawlers_map: # the _id may not belong to a scrapy spider, so check it 
+      self._ids_to_crawlers_map[spiderID]["crawler"].stop() # does this emit the spider_closed signal?
+      if not keepState:
+        self._ids_to_crawlers_map[spiderID]["spider"]._stop()
   
   def spider_closed(self, spider):
     self.closed_spiders += 1
-    if spider.event_handler: spider.event_handler.emit(SpiderClosed(spider.id))
+    if spider.event_handler: spider.event_handler.emit(SpiderClosed(spider._id))
     if self.closed_spiders == len(self.spiders_info):
       reactor.stop()
+
+  def temp_pause_spider(self, spiderID):
+    if spiderID in self._ids_to_crawlers_map:  
+      self._ids_to_crawlers_map[spiderID]["spider"].temp_pause()
+      
+  def temp_resume_spider(self, spiderID):
+    if spiderID in self._ids_to_crawlers_map:  
+      self._ids_to_crawlers_map[spiderID]["spider"].temp_resume()
+
+  def restart_spider(self, spiderID, keepState=True):
+    # stop all spiders
+    if spiderID in self._ids_to_crawlers_map:  
+      for spider_id in self._ids_to_crawlers_map:
+        if spider_id == spiderID: # use the keepState only for the required spider
+          self.stop_spider(spider_id, keepState)
+        else: # every other spider must keep state
+          self.stop_spider(spider_id, keepState=True)
+      # after all spiders stopped (hopefully, the reactor too), reconfigure them all
+      for spider_id in self._ids_to_crawlers_map:
+        self.config_spider(spider_id, self._ids_to_crawlers_map[spiderID]["spider"]) # reconfigure the spider again
+      reactor.run()
+    
+  def pause_spider(self, spiderID):
+    """Call the spider pause() method and stop it while keeping state"""
+    if self.spider_belongs(spiderID):
+      info_to_pause = self._ids_to_crawlers_map[spiderID]["spider"]
+      spider_to_pause = info_to_pause["spider"]
+      spider_to_pause.pause()
+      crawler_to_stop = info_to_pause["crawler"]
+      crawler_to_stop.stop()
+      
+  def resume_spider(self, spiderName):
+    """resume a spider from disk"""
+    if SpiderConfigManager.is_scrapy_spider(spiderName):
+      # stop all the current spiders and add this one to the mix
+      for spider_id in self._ids_to_crawlers_map:
+        self.stop_spider(spider_id, keepState=True)
+      next_id = max(self._ids_to_crawlers_map.keys()) + 1
+      self.config_spider(next_id, self._createSpider(next_id, None))
+      self.resume_all()
+    
+  def spider_belongs(self, spiderID):
+    return spiderID in self._ids_to_crawlers_map
+  
+  def _createSpider(self, spid, spInfo=None):
+    # None for spInfo means a resume
+    spider = ScrapyCrawler(spInfo, spid)
+    return spider

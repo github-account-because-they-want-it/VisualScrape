@@ -379,9 +379,9 @@ class SpiderTab(QWidget):
         favicon_data = item["images"][0]
         self.favicon_received.emit(favicon_data["path"]) # note that icons are not guaranteed to have a path. Not everybody wants to save images
         self._favicon_received = True
-        self._spider_id = item["id"]
+        self._spider_id = item["_id"]
       else:
-        item.pop("id") # the table has nothing to do with spider ids
+        item.pop("_id") # the table has nothing to do with spider ids
         self._data_table.addItem(item)
       self._item_count += 1
       self._label_count.setText(self.tr("{0:n} items scraped".format(self._item_count)))
