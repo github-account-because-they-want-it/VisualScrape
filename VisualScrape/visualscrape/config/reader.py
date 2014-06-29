@@ -2,10 +2,7 @@
 Created on May 27, 2014
 @author: Mohammed Hamdy
 '''
-"""
-As it turns out, this module might be totally useless. 
-Scrapy has scrapy._settings.Settings
-"""
+
 from scrapy.utils.misc import load_object
 from visualscrape.lib.util import SingletonMeta
 from visualscrape import settings

@@ -33,18 +33,18 @@ def MySingleton(initMethod):
 
 def download_image(imageUrl, savePath, replace=False):
   """Download an image (or maybe any file) and return it's save location, on success"""
-  if not os._spider_path.exists(savePath):
+  if not os.path.exists(savePath):
     os.mkdir(savePath)
   parsed_url = urlparse.urlparse(imageUrl)
   try:
     con = httplib.HTTPConnection(parsed_url.netloc)
-    con.request("GET", parsed_url._spider_path)
+    con.request("GET", parsed_url.path)
     response = con.getresponse()
     image_data = response.read()
-    # determine the image name from the it's url _spider_path
+    # determine the image name from the it's url path
     image_name = imageUrl[imageUrl.rfind('/') + 1:]
-    save_to = os._spider_path.join(savePath, image_name)
-    if os._spider_path.exists(save_to) and not replace: return save_to
+    save_to = os.path.join(savePath, image_name)
+    if os.path.exists(save_to) and not replace: return save_to
     out = open(save_to, "wb")
     out.write(image_data)
     out.close()

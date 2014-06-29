@@ -4,7 +4,7 @@ Created on May 26, 2014
 '''
 """Warning: setting names should not begin with underscores, since these are used internally"""
 
-from visualscrape.lib.commonspider.base import SpiderTypes as _spidertypes
+from visualscrape.lib.types import SpiderTypes as _spidertypes
 
 BOT_NAME = 'ScrapyCrawler'
 
@@ -27,7 +27,7 @@ SCRAPER_CLASSES = {"visualscrape.lib.scrapylib.ScrapyCrawler" : _spidertypes.TYP
 
 ITEM_LOADER = "visualscrape.lib.scrapylib.itemloader.DefaultItemLoader"
 
-DOWNLOAD_FAVICON = True
+DOWNLOAD_FAVICON = False
 
 FEED_FORMAT = "json"
 FEED_URI = "file:///C:/Users/Tickler/Desktop/example.json"

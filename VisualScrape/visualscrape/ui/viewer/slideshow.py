@@ -42,7 +42,7 @@ class SlideshowWidget(QStackedWidget):
       image_widget.resize(self.size())
       # now move each image in it's respective position. remember, each image has the size of self
       # i.e, each image fills self
-      image_widget.move(self_width * i, 0)
+      image_widget.move(self_width * i - self_width * self._cur_widget_index, 0)
     super(SlideshowWidget, self).resizeEvent(re)  
     
   def enterEvent(self, mme):

@@ -4,8 +4,8 @@ Created on Jun 19, 2014
 '''
 from PySide.QtGui import QAction
 import cPickle as pickle, os.path as pth
-from visualscrape.config import settings
-from visualscrape.lib.commonspider.base import SpiderTypes
+import visualscrape.config as config
+from visualscrape.lib.types import SpiderTypes
 
 class ProducerMixin(object):
   """
@@ -116,7 +116,7 @@ class SpiderConfigManager(object):
   
   @staticmethod
   def get_config_path():
-    return settings._CONFIG_PATH
+    return config.settings._CONFIG_PATH
   
   @classmethod
   def get_config_file_for(cls, spiderName):

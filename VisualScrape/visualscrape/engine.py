@@ -42,7 +42,7 @@ class CrawlEngine(object):
     
   def register_handler(self, handler):
     # assert isinstance(handler, IEventHandler), "Handler doesn't implement required interface <IEventHandler>"
-    handler.stop_spider_signal.connect(self.stop_spider)
+    #handler.stop_spider_signal.connect(self.stop_spider)
     self.current_spider_info.set_handler(handler)
     return self
   

@@ -33,7 +33,7 @@ class SeleniumDataHandlerMixin(object):
     parsed_home = urlparse.urlparse(self.get_nav_browser().current_url)
     favicon_url = urlparse.urljoin(parsed_home.scheme + "://" + parsed_home.netloc, "favicon.ico")
     downloaded_path = download_image(favicon_url, self._get_image_save_path())
-    favicon_item["images"] = [{"_spider_path": downloaded_path, "url":favicon_url}]
+    favicon_item["images"] = [{"path": downloaded_path, "url":favicon_url}]
     self.pipeline_handler.run_pipeline(favicon_item)
     return favicon_item
     
@@ -59,7 +59,7 @@ class SeleniumDataHandlerMixin(object):
       for image_url in image_urls:
         loc = download_image(image_url, save_folder)
         if loc: downloaded_images.append((image_url, loc))
-      item.fields["images"] = [{"url":url, "_spider_path":path} for (url, path) in downloaded_images] 
+      item.fields["images"] = [{"url":url, "path":path} for (url, path) in downloaded_images] 
     self.pipeline_handler.run_pipeline(item)
     return item
      
@@ -98,7 +98,7 @@ class SeleniumDataHandlerMixin(object):
   def _get_image_save_path(self):
     #read the save _spider_path from settings
     save_folder = settings.IMAGES_STORE.value()
-    save_folder = os._spider_path.join(save_folder, "selenium_images")
+    save_folder = os.path.join(save_folder, "selenium_images")
     return save_folder
   
   def _get_links_from_selector(self, selector, restrict=None, unique=False):

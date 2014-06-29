@@ -25,7 +25,7 @@ class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
   """
   name = "ScrapyCrawler"
   def __init__(self, spiderInfo, spiderID, name="ScrapyCrawler", **kwargs):
-    EventConfigurator.__init__(self, spiderInfo, spiderID, name, **kwargs)
+    EventConfigurator.__init__(self, spiderInfo, spiderID, name, kwargs)
     CommonCrawler.__init__(self, spiderInfo, spiderID, name, kwargs)
     self.path_index = 0
     self.favicon_item = None
@@ -146,9 +146,6 @@ class ScrapyManager(object):
     
   def run_spiders(self):
     """Currently, all the spiders are run within the same process"""
-    """DAMMIT. this method depends on spider info to be available, while when
-       resuming this is not true until the spider is initialized
-       What should I do?. """
     log.start(loglevel=log.DEBUG)
     for (spid, sp_info) in enumerate(self.spiders_info):
       spider = self._createSpider(spid, sp_info)

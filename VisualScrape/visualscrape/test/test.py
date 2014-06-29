@@ -7,12 +7,12 @@ from PySide.QtGui import QApplication, QGraphicsDropShadowEffect
 import unittest, sys
 from threading import Thread
 from visualscrape.engine import CrawlEngine
-from visualscrape.lib.path import SpiderPath, URL, Form, MainPage
-from visualscrape.lib.selector import FieldSelector, UrlSelector
-from visualscrape.test.test_handler import Handler
+from visualscrape.lib.path import SpiderPath
 from visualscrape.ui.viewer.window import VisualScrapeWindow
 from visualscrape.test.test_site_selectors import (nefsak_laptop_info, nefsak_main_page, nefsak_url,
-                                                  egyprices_main_page, egyprices_url, cars_url, cars_main_page)
+                                                  egyprices_main_page, egyprices_url, cars_url, cars_main_page,
+                                                  autotrader_url, autotrader_main_page, autotrader_item_selector)
+from carscraper.dbreceiver import MongoReceiver
 
 class Test(unittest.TestCase):
   
@@ -20,10 +20,10 @@ class Test(unittest.TestCase):
     app = QApplication(sys.argv)
     main = VisualScrapeWindow()
     path = SpiderPath()
-    _spider_path.add_step(cars_url).add_step(cars_main_page)
+    path.add_step(cars_url).add_step(cars_main_page)
     engine = CrawlEngine()
     handler = main.addSpider("Cars.com")
-    engine.add_spider("Cars.Com").set_path(_spider_path).register_handler(handler).start()
+    engine.add_spider("Cars.Com").set_path(path).register_handler(handler).start()
     main.setWindowTitle("VisualScrape")
     main.setGraphicsEffect(QGraphicsDropShadowEffect())
     main.showMaximized()
@@ -34,7 +34,7 @@ class Test(unittest.TestCase):
     self._gui_thread = Thread(target=self._test_ui)
     self._gui_thread.start()
     
-  def test_ui(self):
+  def _test_ui(self):
     app = QApplication(sys.argv)
     main = VisualScrapeWindow()
     nefsak_handler = main.addSpider("NefsakLaptopSpider")
@@ -52,6 +52,13 @@ class Test(unittest.TestCase):
     main.setGraphicsEffect(QGraphicsDropShadowEffect())
     main.showMaximized()
     sys.exit(app.exec_())
+    
+  def test_auto_trader(self):
+      path = SpiderPath()
+      path.add_step(autotrader_url).add_step(autotrader_main_page)
+      engine = CrawlEngine()
+      handler = MongoReceiver(table=MongoReceiver.TABLE_CARS_COM)
+      engine.add_spider("AutoTraderSpider").set_path(path).register_handler(handler).start()
     
 if __name__ == "__main__":
   unittest.main()

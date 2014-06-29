@@ -5,8 +5,11 @@ Created on Jun 18, 2014
 from scrapy.selector import Selector
 from scrapy.utils.misc import load_object
 from visualscrape.lib.selector import FieldSelector, ContentSelector, ImageSelector
-from visualscrape.config.reader import Setting, settings
+from visualscrape.config.reader import Setting
+from visualscrape.config import settings
+from visualscrape import settings as setting_module
 from visualscrape.lib.data import SpiderConfigManager
+from visualscrape.lib.types import SpiderTypes
 import re, cPickle as pickle, os
 
 class CommonCrawler(object):
@@ -20,7 +23,7 @@ class CommonCrawler(object):
       
     self.favicon_required = settings.DOWNLOAD_FAVICON.value() 
     self.item_loader = CommonCrawler.get_item_loader_for(self._spider_info.spider_path[0])
-    self.request_delay = settings.SITE_PARAMS.by(spInfo.spider_path[0]).get("REQUEST_DELAY", 1)
+    self.request_delay = settings.SITE_PARAMS.by(spiderInfo.spider_path[0]).get("REQUEST_DELAY", 1)
     self._spider_path = spiderInfo.spider_path
     self._id = spiderID
     self.name = spiderInfo.spider_name
@@ -58,7 +61,7 @@ class CommonCrawler(object):
     
   def _stop(self):
     # delete the configuration file for the spider
-    os.remove(self.get_config_file_for(self.name))
+    os.remove(SpiderConfigManager.get_config_file_for(self.name))
   
   def get_item_info(self, kvSelectors, response):
     """Do field key preprocessing if required and return key-selector map"""
@@ -146,7 +149,7 @@ class CommonCrawler(object):
   @staticmethod  
   def get_preferred_scraper_for(startUrl):
     """Used by the engine to get the user-defined scraper for his site"""
-    scraper_classes = settings.SCRAPER_CLASSES
+    scraper_classes = setting_module.SCRAPER_CLASSES
     # switch keys and values, to be able to get the class by it's number
     switched = {value:key for (key, value) in scraper_classes.items()}
     #now get the index of the user-defined class, if at all
@@ -161,7 +164,3 @@ class CommonCrawler(object):
     else: # No site params for this site
       return load_object(switched[min(switched.keys())])
     
-class SpiderTypes(object):
-  TYPE_SCRAPY = 1
-  TYPE_SELENIUM = 2
-  

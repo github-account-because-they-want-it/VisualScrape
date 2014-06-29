@@ -6,7 +6,7 @@ import os
 from visualscrape.config import settings
 from visualscrape.lib.signal import ItemScraped
 from visualscrape.lib.selector import Merge
-from visualscrape.lib.commonspider.base import SpiderTypes
+from visualscrape.lib.data import SpiderConfigManager
 
 class FilterFieldsPipeline(object):
   """
@@ -25,18 +25,18 @@ class FilterFieldsPipeline(object):
 
 
 class CanonicalizeImagePathPipeline(object):
-  """Images "_spider_path" field returned from scrapy is not canonicalized, making
+  """Images "path" field returned from scrapy is not canonicalized, making
      it useless to locate the image"""
   
   def process_item(self, item, spider):
     images = item.get("images", None)
     if images:
       for image in images:
-        image_path = os._spider_path.normpath(image.get("_spider_path"))
-        parent_folder = os._spider_path.normpath(settings.IMAGES_STORE.value())
+        image_path = os.path.normpath(image.get("path"))
+        parent_folder = os.path.normpath(settings.IMAGES_STORE.value())
         if not parent_folder in image_path:
-          image_path = os._spider_path.join(parent_folder, image_path)
-          image["_spider_path"] = image_path
+          image_path = os.path.join(parent_folder, image_path)
+          image["path"] = image_path
     return item
 
 class PushToHandlerPipeline(object):
@@ -63,4 +63,4 @@ class ItemPostProcessor(object):
 class SaveSpiderProgressPipeline(object):
   
   def process_item(self, item, spider):
-    
+    SpiderConfigManager.updateSpiderInformation(item)
