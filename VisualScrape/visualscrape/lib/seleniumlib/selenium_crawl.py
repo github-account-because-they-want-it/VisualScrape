@@ -29,7 +29,7 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
     EventConfigurator.__init__(self, spiderInfo, spiderID, **kwargs)
     CommonCrawler.__init__(self, spiderInfo, spiderID, kwargs)
     SeleniumDataHandlerMixin.__init__(self)
-    
+    self._profile_settings = {}
     self._item_browser_established = False
     self._link_types = None
     self._terminated = False
@@ -80,12 +80,11 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
     
   def _prepare_browsers(self):
     # check settings for our start url
-    from visualscrape.lib.seleniumlib.handler import SeleniumDataHandlerMixin
-    profile=None
-    if settings.SITE_PARAMS.by(self._spider_path[0]).get("COOKIES_ENABLED", None) is False:
-      profile = webdriver.FirefoxProfile(profile_directory=r"C:\Users\Tickler\AppData\Local\Temp\prof_dir")
-      profile.set_preference("network.cookie.cookieBehavior", 1)
-    self.nav_browser = webdriver.Firefox(firefox_profile=profile)
+    if settings.SITE_PARAMS.by(self._spider_path[0]).get("COOKIES_ENABLED", True) is False:
+      self._profile_settings["network.cookie.cookieBehavior"] = 1
+    if settings.SITE_PARAMS.by(self._spider_path[0]).get("IMAGES_ENABLED", True) is False:
+      self._profile_settings["permissions.default.image"] = 2 # could also be 1 with some older firefox versions
+    self.nav_browser = webdriver.Firefox(self._create_profile())
     #try to run headless on linux
     if sys.platform.startswith("linux"):
       try:
@@ -96,6 +95,11 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
         self._display = None
     else:
       self._display = None
+      
+  def _create_profile(self):
+    ff_profile = webdriver.FirefoxProfile()
+    [ff_profile.set_preference(key, value) for key, value in self._profile_settings.items()]
+    return ff_profile
   
   def _take_step(self, step):
     """Visit a url or fill a form and post it"""
@@ -145,7 +149,7 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
        browser is closed and another one is opened for the link"""
     if not self._item_browser_established:
       if action == UrlSelector.ACTION_VISIT:
-        self._item_browser = webdriver.Firefox()
+        self._item_browser = webdriver.Firefox(self._create_profile())
         self._link_types = self.LINK_TYPE_GET
         self._item_browser_established = True
         return self._item_browser

@@ -11,7 +11,7 @@ from visualscrape.lib.path import SpiderPath
 from visualscrape.ui.viewer.window import VisualScrapeWindow
 from visualscrape.test.test_site_selectors import (nefsak_laptop_info, nefsak_main_page, nefsak_url,
                                                   egyprices_main_page, egyprices_url, cars_url, cars_main_page,
-                                                  autotrader_url, autotrader_main_page, autotrader_item_selector)
+                                                  autotrader_url, autotrader_main_page)
 from carscraper.dbreceiver import MongoReceiver
 
 class Test(unittest.TestCase):

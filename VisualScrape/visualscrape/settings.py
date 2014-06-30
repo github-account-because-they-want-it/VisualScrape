@@ -37,21 +37,27 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0"
 SITE_PARAMS = {"http://www.machinerytrader.com/":{"REQUEST_DELAY":3, 
               #The cookies enabled settings applies actually per-start-url, not per-site
                                                   "COOKIES_ENABLED": True,
+                                                  # currently, this setting is only supported on selenium, but it might be the default on Scrapy, which seems logical
+                                                  "IMAGES_ENABLED" : False, 
                                                   "PREFERRED_SCRAPER": _spidertypes.TYPE_SELENIUM, # Uses indexes from SCRAPER_CLASSES
                                                   "ITEM_LOADER": "carscraper.itemloader.CarItemLoader",
                                                   },
                "http://www.cycletrader.com":{"PREFERRED_SCRAPER":_spidertypes.TYPE_SELENIUM,
+                                             "IMAGES_ENABLED" : False,
                                              "REQUEST_DELAY": 1,
                                              "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"}, # use the car item loader because it overrider takefirst on output
                
                "http://www.ebay.com/":{"PREFERRED_SCRAPER": _spidertypes.TYPE_SELENIUM,
+                                       "IMAGES_ENABLED" : False,
                                        "REQUEST_DELAY": 1,
                                        "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"},
                
                "http://www.cars.com":{"PREFERRED_SCRAPER":_spidertypes.TYPE_SELENIUM, # runs quite well with 1
+                                      "IMAGES_ENABLED" : False,
                                       "REQUEST_DELAY": 1, 
                                       "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"},
                
                "http://www.autotrader.com":{"PREFERRED_SCRAPER":_spidertypes.TYPE_SELENIUM, # requires click pagination
+                                            "IMAGES_ENABLED" : False,
                                             "REQUEST_DELAY":1,
                                             "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"}}
