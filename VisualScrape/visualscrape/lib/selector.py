@@ -83,12 +83,14 @@ class ContentSelector(FieldSelector):
 
 class ItemSelector(object):
   """This should be used to contain KeyValueSelector objects. 
-     along with any item post-processing information
+     along with any item post-processing information. ItemPageActions
+     also belong here.
   """
-  def __init__(self, kvSelectors=[], postProcessingInfo=None):
+  def __init__(self, kvSelectors=[], postProcessingInfo=None, itemPageActions=None):
     self.key_value_selectors = kvSelectors
     self.post_process_info = postProcessingInfo
-
+    self.item_page_actions = itemPageActions
+    
 
 class Merge(object):
   def __init__(self, fieldNames, outputName, mergeChars=''):
@@ -97,9 +99,36 @@ class Merge(object):
     self.merge_chars = mergeChars
     
   def __unicode__(self):
-    return "<Merge operation at 0x%0x>" % _id(self)
+    return "<Merge operation at 0x%0x>" % id(self)
 
 class PostProcessing(list):
   """A list of post processing information objects"""
   pass
   
+class ItemPageAction(object):
+  """Action to perform after arriving at an item page, like clicking.
+     This will be only supported for Selenium"""
+  ACTION_CLICK = 1
+  def __init__(self, selector, selectorType, action=ACTION_CLICK):
+    """
+    selector -- A selector that will yield one or more elements, on which to perform the
+                action.
+    selectorType -- A selector type from FieldSelector
+    """
+    self.type = action
+    self.selector = selector
+    self.selector_type = selectorType
+    
+class ItemPageAfterAction(object):
+  pass
+
+class ItemPageAfterActionSelect(ItemPageAfterAction):
+  
+  def __init__(self, selector, selectorType, outputField):
+    self.selector = selector
+    self.selector_type = selectorType
+    self.output_field = outputField
+    
+class ItemPageActions(list):
+  """A list of 2-tuples of (ItemPageAction, ItemPageAfterAction)"""
+  pass

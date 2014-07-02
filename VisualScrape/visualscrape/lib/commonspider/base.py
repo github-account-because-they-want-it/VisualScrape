@@ -87,6 +87,7 @@ class CommonCrawler(object):
   def fill_item_loader(self, itemLoader, itemInfo, response, ppInfo):
     """Fill an item loader with data from itemInfo and response"""
     from visualscrape.lib.scrapylib.scrapy_crawl import ScrapyCrawler
+    import visualscrape.lib.seleniumlib.selenium_crawl as selenium_mod
     for (key, value_selector) in zip(itemInfo["keys"], itemInfo["values"]):
       if isinstance(value_selector, ContentSelector):
         sel = Selector(response)
@@ -122,6 +123,8 @@ class CommonCrawler(object):
             itemLoader.add_xpath("image_urls", value_selector)
           else:
             itemLoader.add_xpath(key, value_selector)
+    if isinstance(self, selenium_mod.SeleniumCrawler):
+      self._loadPageActions(itemLoader)
     itemLoader.add_value("_id", self._id)
     # add the post processing information
     itemLoader.add_value("_postinfo", ppInfo)

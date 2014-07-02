@@ -7,7 +7,7 @@ from scrapy.http import TextResponse
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import Selector
 import os, urlparse, sys, time
-from visualscrape.lib.selector import FieldSelector, UrlSelector
+from visualscrape.lib.selector import FieldSelector, UrlSelector, ItemPageAction, ItemPageAfterActionSelect
 from visualscrape.lib.pipeline_handler import PipelineHandler
 from visualscrape.lib.item import InterestItem, FaviconItem
 from visualscrape.lib.util import download_image
@@ -88,7 +88,7 @@ class SeleniumDataHandlerMixin(object):
           return selector
     elif "::" in selector and selector.type == FieldSelector.CSS:
       # strip of the last :: occurence to the end
-      ref_pos = selector.rfind("/::")
+      ref_pos = selector.rfind("::")
       if ref_pos: 
         selector = selector[:ref_pos]
         if len(self.get_nav_browser().find_elements_by_css_selector(selector)):
@@ -157,6 +157,57 @@ class SeleniumDataHandlerMixin(object):
     if self._resumed:
       new_links = [link for link in new_links if not link in self._visited_urls_before_shutdown]
     return new_links
+  
+  def _loadPageActions(self, itemLoader):
+    page_actions = self._spider_path[-1].item_selector.item_page_actions
+    if not page_actions: return itemLoader
+    for action, after_action in page_actions:
+      after_selector = after_action.selector
+      after_selector_type = after_action.selector_type
+      output_field = after_action.output_field
+      after_selector, after_attribute = self._splitSelector(after_selector, after_selector_type)
+      if action.type == ItemPageAction.ACTION_CLICK:
+        item_browser = self.get_item_browser()
+        action_selector = action.selector
+        action_selector_type = action.selector_type
+        # find the [ELEMENTS] to click or whatever
+        if action_selector_type == FieldSelector.CSS:
+          action_elems = item_browser.find_elements_by_css_selector(action_selector)
+        elif action_selector_type == FieldSelector.XPATH:
+          action_elems = item_browser.find_elements_by_xpath(action_selector)
+        for action_elem in action_elems:
+          action_elem.click() # wait?
+          self._wait(item_browser)
+          if isinstance(after_action, ItemPageAfterActionSelect):
+            if after_selector_type == FieldSelector.CSS:
+              extra_elems = item_browser.find_elements_by_css_selector(after_selector)
+            elif after_selector_type == FieldSelector.XPATH:
+              extra_elems = item_browser.find_elements_by_xpath(after_selector)
+            if after_attribute == "text" or not after_attribute:
+              extra_values = [extra_elem.text for extra_elem in extra_elems]
+            else:
+              extra_values = [extra_elem.get_attribute(after_attribute) for extra_elem in extra_elems]
+            
+            itemLoader.add_value(output_field, extra_values)
+  
+  def _splitSelector(self, selector, selectorType):
+    if selectorType == FieldSelector.CSS:
+      attr_start = selector.rfind("::")
+      if attr_start < 0: return selector, ''
+      attr = selector[attr_start+2:]
+      selector = selector[:attr_start]
+      return selector, attr
+    elif selectorType == FieldSelector.XPATH:
+      if selector.endswith("/text()"):
+        selector = selector[:selector.rfind("/text()")]
+        attr = "text"
+        return selector, attr
+      elif selector.rfind("/@") > 0: # the slash here is important, since @ can appear in attribute lookups
+        attr_start = selector.rfind("/@")
+        attr = selector[attr_start+2:]
+        selector = selector[:attr_start]
+        return selector, attr
+      else: return selector, ''
   
   def make_profile_dir(self):
     """Create a profile folder with a prefix and randomized name part. The bug is within selenium.

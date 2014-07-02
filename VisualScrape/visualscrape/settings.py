@@ -18,7 +18,7 @@ ITEM_PIPELINES = {"visualscrape.lib.scrapylib.pipeline.ItemPostProcessor": 1,
                   "visualscrape.lib.scrapylib.pipeline.CanonicalizeImagePathPipeline": 101,
                   "visualscrape.lib.scrapylib.pipeline.FilterFieldsPipeline": 100,
                   "visualscrape.lib.scrapylib.pipeline.PushToHandlerPipeline": 1000}
-                  #"carscraper.pipeline.CorrectMotoFieldNamesPipeline":102}
+                  #"visualscrape.pipeline.CorrectMotoFieldNamesPipeline":102}
 
 IMAGES_STORE = "D:/scraped_images" #relative to the project directory?
 _CONFIG_PATH = "D:/scraped_images/config" # this is a path used for spider configuration, like current progress
@@ -40,24 +40,24 @@ SITE_PARAMS = {"http://www.machinerytrader.com/":{"REQUEST_DELAY":3,
                                                   # currently, this setting is only supported on selenium, but it might be the default on Scrapy, which seems logical
                                                   "IMAGES_ENABLED" : False, 
                                                   "PREFERRED_SCRAPER": _spidertypes.TYPE_SELENIUM, # Uses indexes from SCRAPER_CLASSES
-                                                  "ITEM_LOADER": "carscraper.itemloader.CarItemLoader",
+                                                  "ITEM_LOADER": "visualscrape.itemloader.CarItemLoader",
                                                   },
                "http://www.cycletrader.com":{"PREFERRED_SCRAPER":_spidertypes.TYPE_SELENIUM,
                                              "IMAGES_ENABLED" : False,
                                              "REQUEST_DELAY": 1,
-                                             "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"}, # use the car item loader because it overrider takefirst on output
+                                             "ITEM_LOADER": "visualscrape.itemloader.CarItemLoader"}, # use the car item loader because it overrider takefirst on output
                
                "http://www.ebay.com/":{"PREFERRED_SCRAPER": _spidertypes.TYPE_SELENIUM,
                                        "IMAGES_ENABLED" : False,
                                        "REQUEST_DELAY": 1,
-                                       "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"},
+                                       "ITEM_LOADER": "visualscrape.itemloader.CarItemLoader"},
                
                "http://www.cars.com":{"PREFERRED_SCRAPER":_spidertypes.TYPE_SELENIUM, # runs quite well with 1
-                                      "IMAGES_ENABLED" : False,
+                                      "IMAGES_ENABLED" : True,
                                       "REQUEST_DELAY": 1, 
-                                      "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"},
+                                      "ITEM_LOADER": "visualscrape.itemloader.CarItemLoader"},
                
                "http://www.autotrader.com":{"PREFERRED_SCRAPER":_spidertypes.TYPE_SELENIUM, # requires click pagination
-                                            "IMAGES_ENABLED" : False,
+                                            "IMAGES_ENABLED" : True,
                                             "REQUEST_DELAY":1,
-                                            "ITEM_LOADER": "carscraper.itemloader.CarItemLoader"}}
+                                            "ITEM_LOADER": "visualscrape.itemloader.CarItemLoader"}}

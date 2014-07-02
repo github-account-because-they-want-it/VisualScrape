@@ -5,11 +5,15 @@ Created on Jun 6, 2014
 from visualscrape.lib.signal import SpiderClosed
 from visualscrape.lib.event_handler import IEventHandler
 from threading import Timer
+from blinker import signal
 
 class Handler(IEventHandler):
+  spider_stop_signal = signal("spider-stop")
+  
   def __init__(self):
     self.event_queue = None
     self.data_queue = None
+    self.spider_stop_signal.connect(self.stop_timer)
     self.timer = Timer(30, self.check_queues)
     self.timer.start()
     
@@ -19,7 +23,7 @@ class Handler(IEventHandler):
   def set_data_queue(self, queue):
     self.data_queue = queue
     
-  def set_engine(self, engine):
+  def stop_timer(self):
     pass
     
   def check_queues(self):

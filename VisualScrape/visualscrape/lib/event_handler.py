@@ -13,7 +13,7 @@ class IEventHandler(object):
   __metaclass__ = abc.ABCMeta
   
   @abc.abstractproperty
-  def stop_spider_signal(self):
+  def spider_stop_signal(self):
     raise NotImplemented
   
   @abc.abstractmethod

@@ -12,7 +12,8 @@ from visualscrape.ui.viewer.window import VisualScrapeWindow
 from visualscrape.test.test_site_selectors import (nefsak_laptop_info, nefsak_main_page, nefsak_url,
                                                   egyprices_main_page, egyprices_url, cars_url, cars_main_page,
                                                   autotrader_url, autotrader_main_page)
-from carscraper.dbreceiver import MongoReceiver
+from visualscrape.test.test_handler import Handler
+#from visualscrape.dbreceiver import MongoReceiver
 
 class Test(unittest.TestCase):
   
@@ -53,11 +54,11 @@ class Test(unittest.TestCase):
     main.showMaximized()
     sys.exit(app.exec_())
     
-  def test_auto_trader(self):
+  def test_cars_com(self):
       path = SpiderPath()
-      path.add_step(autotrader_url).add_step(autotrader_main_page)
+      path.add_step(cars_url).add_step(cars_main_page)
       engine = CrawlEngine()
-      handler = MongoReceiver(table=MongoReceiver.TABLE_CARS_COM)
+      handler = Handler()
       engine.add_spider("AutoTraderSpider").set_path(path).register_handler(handler).start()
     
 if __name__ == "__main__":
