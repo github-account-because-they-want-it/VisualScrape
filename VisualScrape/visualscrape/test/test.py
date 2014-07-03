@@ -11,7 +11,8 @@ from visualscrape.lib.path import SpiderPath
 from visualscrape.ui.viewer.window import VisualScrapeWindow
 from visualscrape.test.test_site_selectors import (nefsak_laptop_info, nefsak_main_page, nefsak_url,
                                                   egyprices_main_page, egyprices_url, cars_url, cars_main_page,
-                                                  autotrader_url, autotrader_main_page)
+                                                  autotrader_url, autotrader_main_page,
+  nefsak_content_main_page)
 from visualscrape.test.test_handler import Handler
 #from visualscrape.dbreceiver import MongoReceiver
 
@@ -35,14 +36,14 @@ class Test(unittest.TestCase):
     self._gui_thread = Thread(target=self._test_ui)
     self._gui_thread.start()
     
-  def _test_ui(self):
+  def test_ui(self):
     app = QApplication(sys.argv)
     main = VisualScrapeWindow()
     nefsak_handler = main.addSpider("NefsakLaptopSpider")
     #egyprices_handler = main.addSpider("EgypricesLaptopSpider")
     nefsak_path = SpiderPath()
     egyprices_path = SpiderPath()
-    nefsak_path.add_step(nefsak_url).add_step(nefsak_main_page)
+    nefsak_path.add_step(nefsak_url).add_step(nefsak_content_main_page)
     egyprices_path.add_step(egyprices_url).add_step(egyprices_main_page)
     engine = CrawlEngine()
     engine.add_spider("NefsakLaptopSpider").set_path(nefsak_path).register_handler(nefsak_handler).start()
@@ -54,7 +55,7 @@ class Test(unittest.TestCase):
     main.showMaximized()
     sys.exit(app.exec_())
     
-  def test_cars_com(self):
+  def _test_cars_com(self):
       path = SpiderPath()
       path.add_step(cars_url).add_step(cars_main_page)
       engine = CrawlEngine()

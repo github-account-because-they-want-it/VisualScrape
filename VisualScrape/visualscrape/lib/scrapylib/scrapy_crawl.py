@@ -17,6 +17,7 @@ from visualscrape.lib.selector import FieldSelector
 from visualscrape.lib.signal import SpiderStarted, SpiderClosed
 from visualscrape.lib.event_handler import EventConfigurator
 from visualscrape.lib.data import SpiderConfigManager
+from scrapy.exceptions import CloseSpider
 
 class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
   """
@@ -25,8 +26,8 @@ class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
   """
   name = "ScrapyCrawler"
   def __init__(self, spiderInfo, spiderID, name="ScrapyCrawler", **kwargs):
-    EventConfigurator.__init__(self, spiderInfo, spiderID, name, kwargs)
-    CommonCrawler.__init__(self, spiderInfo, spiderID, name, kwargs)
+    EventConfigurator.__init__(self, spiderInfo, spiderID, name, **kwargs)
+    CommonCrawler.__init__(self, spiderInfo, spiderID, name, **kwargs)
     self.path_index = 0
     self.favicon_item = None
   
@@ -72,6 +73,8 @@ class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
     # check temporary pausing
     while self._temp_paused:
       time.sleep(self._sleep_timeout)
+      if self._stopped: break
+    if self._stopped: raise CloseSpider()
     item_selector = self._spider_path[-1].item_selector
     key_value_selectors = item_selector.key_value_selectors
     item_info = self.get_item_info(key_value_selectors, response)
@@ -175,7 +178,7 @@ class ScrapyManager(object):
     if spiderID in self._ids_to_crawlers_map: # the _id may not belong to a scrapy spider, so check it 
       self._ids_to_crawlers_map[spiderID]["crawler"].stop() # does this emit the spider_closed signal?
       if not keepState:
-        self._ids_to_crawlers_map[spiderID]["spider"]._stop()
+        self._ids_to_crawlers_map[spiderID]["spider"].stop(keepState)
   
   def spider_closed(self, spider):
     self.closed_spiders += 1

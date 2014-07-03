@@ -30,6 +30,7 @@ class CommonCrawler(object):
     # load configuration data for the spider
     self._sleep_timeout = sleepTimeout
     self._resumed = False
+    self._stopped = False # flag for the spiders to check
     self._temp_paused = False
     self._visited_urls_before_shutdown = []
   
@@ -59,15 +60,17 @@ class CommonCrawler(object):
     self._spider_info = spider_info
     info_file.close()
     
-  def _stop(self):
-    # delete the configuration file for the spider
-    os.remove(SpiderConfigManager.get_config_file_for(self.name))
+  def stop(self, keepState=True):
+    if not keepState:
+      # delete the configuration file for the spider
+      os.remove(SpiderConfigManager.get_config_file_for(self.name))
+    self._stopped = True
   
   def get_item_info(self, kvSelectors, response):
     """Do field key preprocessing if required and return key-selector map"""
     item_info = {"keys":[], "values":[]}
     for key_value_selector in kvSelectors:
-      # keys can be either strings or selectors
+      # keys can be either strings or selectors. For the latter, obtain the key from the page
       key_selector = key_value_selector.key_selector
       if isinstance(key_selector, FieldSelector): #key_selector is a FieldSelector, use it to get the key from the response
         sel = Selector(response)
@@ -90,8 +93,7 @@ class CommonCrawler(object):
     import visualscrape.lib.seleniumlib.selenium_crawl as selenium_mod
     for (key, value_selector) in zip(itemInfo["keys"], itemInfo["values"]):
       if isinstance(value_selector, ContentSelector):
-        sel = Selector(response)
-        restricted = sel.css(value_selector.restrict_selector)
+        restricted = self._selectFrom(value_selector.restrict_selector, value_selector.restrict_selector.type, response)
         if restricted: restrict_selector = restricted[0] # get the first tag that matches the restrict selector
         else: 
           from visualscrape.lib.scrapylib.log import log
@@ -99,16 +101,18 @@ class CommonCrawler(object):
           continue
         # select all subelements of restricted and check them against the regex
         subs = restrict_selector.xpath("//*")
-        if value_selector.type == ContentSelector.WORDLIST:
-          words = value_selector.split()
-          regexp = re.compile(words.join('|'), re.IGNORECASE)
-        elif value_selector.type == ContentSelector.REGEX:
-          regexp = re.compile(value_selector, re.IGNORECASE)
+        if value_selector.selector.type == FieldSelector.WORDLIST:
+          words = value_selector.selector.split(", ")
+          regexp = re.compile('|'.join(words), re.IGNORECASE)
+        elif value_selector.selector.type == FieldSelector.REGEX:
+          regexp = re.compile(value_selector.selector, re.IGNORECASE)
         for sub_element in subs:
-          subtext = sub_element.css("::text")
+          subtext = sub_element.css("::text").extract()
+          if subtext: subtext = subtext[0] # the text of the parent not the children
+          else: continue
           match = regexp.match(subtext)
           if match:
-            value = subtext[match.start():match.end()]
+            value = subtext
             break
         else: value = '' # no value found for the selector. empty text
         itemLoader.add_value(key, value)
@@ -137,6 +141,14 @@ class CommonCrawler(object):
     item = itemLoader.load_item()
     return item
   
+  def _selectFrom(self, selector, selectorType, response):
+    sel = Selector(response)
+    if selectorType == FieldSelector.CSS:
+      elems = sel.css(selector)
+    elif selectorType == FieldSelector.XPATH:
+      elems = sel.xpath(selector)
+    return elems
+  
   @staticmethod
   def get_item_loader_for(startUrl):
     """Used by spider managers to get item loaders for spiders, because it can be spider-specific"""
@@ -146,8 +158,8 @@ class CommonCrawler(object):
       loader_cls = site_params.get("ITEM_LOADER", None)
       if loader_cls: # specific item loader?
         return load_object(loader_cls)
-      else: return load_object(settings.ITEM_LOADER) #default item loader
-    else: return load_object(settings.ITEM_LOADER) #default item loader
+      else: return load_object(setting_module.ITEM_LOADER) #default item loader
+    else: return load_object(setting_module.ITEM_LOADER) #default item loader
   
   @staticmethod  
   def get_preferred_scraper_for(startUrl):

@@ -33,7 +33,7 @@ class JavaScriptTest(object):
     win = self.js_enabled_test
     win.show()
     win.run()
-    sys.exit(app.exec_())
+    app.exec_()
     
   def runTest2(self):
     self.js_disabled_test.run()

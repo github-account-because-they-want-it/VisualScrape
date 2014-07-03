@@ -32,7 +32,6 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
     self._profile_settings = {}
     self._item_browser_established = False
     self._link_types = None
-    self._terminated = False
     
   def start(self):
     """Manages the crawling process"""
@@ -75,7 +74,6 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
     self.get_nav_browser().quit()
     self._close_item_browser()
     self._display.stop() if self._display else None
-    self._stop()
     if self.event_handler: self.event_handler.emit(SpiderClosed(self._id))
     
   def _prepare_browsers(self):
@@ -125,7 +123,7 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
     current_item_pages, action = self.item_pages()
     for item_page in current_item_pages:
       # clean termination
-      if self._terminated:
+      if self._stopped:
         self._finishoff()
         return
       if action == UrlSelector.ACTION_VISIT:
@@ -191,9 +189,8 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
     self.nav_browser.switch_to.window(self.nav_browser.window_handles[1])
     self._wait(self.nav_browser)
     
-  def terminate(self):
-    # terminate without keeping state
-    self._terminated = True
+  def terminate(self, keepState):
+    self.stop(keepState)
     
   @staticmethod
   def get_manager():

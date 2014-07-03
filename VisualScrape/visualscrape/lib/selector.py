@@ -20,6 +20,8 @@ class FieldSelector(unicode):
   XPATH = 0
   CSS   = 1
   REGEX = 2 
+  WORDLIST = 3
+  
   def __new__(cls, selector, *args, **kwargs): #override new to accept an extra argument
     return unicode.__new__(cls, selector)
   
@@ -68,18 +70,18 @@ class ImageSelector(FieldSelector):
     return super(ImageSelector, self).__unicode__().replace("Field", "Image")
 
 
-class ContentSelector(FieldSelector):
-  WORDLIST = 1
-  REGEX = 2
+class ContentSelector(object):
   
-  def __init__(self, selector, restrictSelector, type=WORDLIST):
+  def __init__(self, selector, restrictSelector):
     """Args:
-         restrictSelector : a CSS selector of an area where the search will be constrained to"""
-    super(ContentSelector, self).__init__(selector, type)
+         selector : A FieldSelector of type REGEX or WORDLIST
+         restrictSelector : a FieldSelector of an area where the search will be constrained to
+    """
+    self.selector = selector
     self.restrict_selector = restrictSelector
   
   def __unicode__(self):
-    return FieldSelector.__unicode__(self).replace("Field", "Content")
+    return u"<ContentSelector : selector={0}, restrict={1}>".format(self.selector, self.restrict_selector)
 
 class ItemSelector(object):
   """This should be used to contain KeyValueSelector objects. 

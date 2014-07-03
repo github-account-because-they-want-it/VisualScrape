@@ -49,5 +49,26 @@ export it's data and where. And whether to use the viewer for it. that's it!.
 The command line utility should read it's configuration, like
 the place where the projects are saved, from somewhere that doesn't
 depend on PySide to be available.
-May I create a signal object now that has 
+May I create a signal object now that has ... no
+How do you plan to pull that GUI together?.
+I am not very decided about it's nature, yet.
+First, let's work on the hatcher. It should support all the features of my API.
+It shall have a browser, with an area to enter the url to start from.
+a load progress will be fine and cool, since now it's frightening to watch it.
+the hatcher will watch the user and create Form or Url objects as necessary.
+Then the item page. I want to be different. The hatcher will have a checkmark of some sort
+to mark a page as the main page. What kind of checkmark?.I intend it to be an overlay
+on the browser. Or a checkmark inside the browsing box, like what google has up there in the
+bar. Let's try that now.
+Ok, I got a lineedit with an Icon, what's next?. 
+How to mark a damn page as a main page?. WTF!. It can't be that complex. But I think
+it's stupid that idea. I think it'd be better to make at at the bottom right of the browser. Nice try, though.
+I can use them both. I think Now at least I got a preliminary icon to be used to. I think I have it
+now.
+the user will navigate and when clicks on that thing, He'll be asked a couple of qustions.
+He'll be asked to choose an example item link and an optional navigation page (assume it'll
+be chosen for now). If I ask him before, It's kinda more likely I'll have no way to cancel the choice.
+I'll have a menu option to reset choices.
+Ok. I think I need an elegant message widget. Instead of the status bar. It it should play it's geometry
+on showing and hiding.
 """

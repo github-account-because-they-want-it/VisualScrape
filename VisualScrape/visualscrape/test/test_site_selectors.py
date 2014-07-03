@@ -5,7 +5,8 @@ Created on Jun 21, 2014
 from visualscrape.lib.path import URL, MainPage
 from visualscrape.lib.selector import (ItemSelector, FieldSelector, KeyValueSelector, ImageSelector, 
                                        UrlSelector, PostProcessing, Merge, ItemPageAction, ItemPageActions,
-                                       ItemPageAfterActionSelect)
+                                       ItemPageAfterActionSelect,
+  ContentSelector)
 
 #www.machinetrader.com
 machinery_selector = ItemSelector([
@@ -226,3 +227,14 @@ egyprices_main_page = MainPage(itemPageSelector=UrlSelector("a.divItem", FieldSe
                                itemSelector=egyprices_laptop_selector,
                                similarPagesSelector=UrlSelector("a.paginationLink", FieldSelector.CSS))
 
+# nefsak.com with content selectors
+nefsak_item_content_selector = ItemSelector([
+                                             KeyValueSelector("CPU", ContentSelector(FieldSelector("AMD, INTEL", FieldSelector.WORDLIST),
+                                                                                     FieldSelector("div.product-details", FieldSelector.CSS))),
+                                             KeyValueSelector("SKU", ContentSelector(FieldSelector("[A-Z]{2}_[A-Z]+", FieldSelector.REGEX),
+                                                                                     FieldSelector("div.product-details", FieldSelector.CSS))),
+                                             ])
+nefsak_content_main_page = MainPage(UrlSelector(r"//div[@class='pr_list_title']//a/@href",FieldSelector.XPATH),
+                         nefsak_item_content_selector,
+                         UrlSelector("nefsak\.com/15-17-Screen/\?page=\d+", FieldSelector.REGEX),
+                         FieldSelector('//div[contains(@class,"navigation_holder")]', FieldSelector.XPATH))
