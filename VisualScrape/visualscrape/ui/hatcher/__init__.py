@@ -70,5 +70,40 @@ He'll be asked to choose an example item link and an optional navigation page (a
 be chosen for now). If I ask him before, It's kinda more likely I'll have no way to cancel the choice.
 I'll have a menu option to reset choices.
 Ok. I think I need an elegant message widget. Instead of the status bar. It it should play it's geometry
-on showing and hiding.
+on showing and hiding. DONE!
+How can I handle content selectors in the UI?
+It can be a good feature when nothing else works. Since it requires the user intervention.
+So the user clicks on something, the browser fails to find anything, so it brings up some kind
+of dialog to the user to intervene.
+So that's how to handle content selectors. Ok.
+How to handle image scraping?. The user right-clicks an image and selects if he wants
+to download it (which will get it displayed on the viewer), or just scrape it's url.
+Image selection is usually successful in the browser, so it shouldn't be a problem to check
+them if the user clicks twice. Selection should happen outside the GUI thread because sometimes
+it blocks and it'll make the app look a bit irresponsive.
+What about page actions?. The user can do some clicks on the item page. And he can select
+one or more items after that. The API supports multiple actions I think, but I didn't test.
+So. Take care of the case when the user navigates back to the same page. Don't handle
+it as a new page.
+Each click the user performs will be recorded in a table on the left. (or better, the bottom).
+there will be 2 tables, one for the key-value data, the other for page actions.
+If the user hovers over the key/value in the table, it'd be nice to be highlighted in the page,
+so she can make sure things are AOK. Maybe not the way back, from the browser to the table, not 
+to drive her mad.
+Am I finished?. I think yea!
+Now It's time to talk more!. the gui could record scrolling. How can that be handled?.
+How should the action table be layouted?. 
+It could be a click action, followed by a select after action
+or it could be a scroll action, also followd by a select.
+What are the properties of a scroll?. The distance?. The scrolled-to element?. Or to the end of page.
+what to wait for after the scroll?. Any specific new content?. The data after the scroll could be similar to
+existing data, or it could be different.
+I'm thinking of an action wizard. Since there maybe many choices.
+But that seems like a mostly empty wizard. That seems like a very involved GUI.
+Just a dialog. Ok, just a dialog. No, It'll be a wizard. 
+Ok. The action wizard will allow a field to be populated. Whether to add it to an
+existing field, or to a new field.
+I think I'm done. Where should I start?.
+I can create the Action menu, and layout with the browser and tables. I think a table view will be
+good, since it has an icon role or something like that. 
 """

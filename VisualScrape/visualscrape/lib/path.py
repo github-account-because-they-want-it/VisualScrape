@@ -16,6 +16,11 @@ class SpiderPath(list):
     """A step could be a URL, Form or MainPage"""
     self.append(step)
     return self
+  
+  def pop_step(self, index=None):
+    if index is None:
+      index = len(self) - 1
+    return self.pop(index)
     
   def __str__(self):
     return "<SpiderPath: {0}>".format(" *>".join(self))
@@ -83,4 +88,4 @@ class MainPage(object):
     self.similar_pages_restrict = similarPagesXpathRestrict 
     
   def __str__(self):
-    return "<MainPage: at {0}>".format(_id(self))
+    return "<MainPage: at {0}>".format(id(self))
