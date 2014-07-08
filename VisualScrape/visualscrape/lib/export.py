@@ -20,8 +20,8 @@ class FileExporter(object):
          fname: the file name to export to without extension"""
     assert fmt in cls.FORMATS_AVAILABLE, "Unsupported export format: <{}>".format(fmt)
     from visualscrape.ui.viewer.dialog import AlreadyExistsDialog
-    output = os._spider_path.normpath(os._spider_path.join(folder, fname))
-    if os._spider_path.exists(output):
+    output = os.path.normpath(os.path.join(folder, fname))
+    if os.path.exists(output):
       dialog = AlreadyExistsDialog(output)
       dialog.exec_()
       if dialog.ret == dialog.CANCEL: return # user retracted from this export

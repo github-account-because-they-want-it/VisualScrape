@@ -6,7 +6,7 @@ from visualscrape.lib.path import URL, MainPage
 from visualscrape.lib.selector import (ItemSelector, FieldSelector, KeyValueSelector, ImageSelector, 
                                        UrlSelector, PostProcessing, Merge, ItemPageAction, ItemPageActions,
                                        ItemPageAfterActionSelect,
-  ContentSelector)
+  ContentSelector, TableSelector)
 
 #www.machinetrader.com
 machinery_selector = ItemSelector([
@@ -207,8 +207,11 @@ nefsak_laptop_info = ItemSelector([
   KeyValueSelector("Warranty", FieldSelector("table.product-properties tr:nth-child(25) td.property-value::text", FieldSelector.CSS)),
   KeyValueSelector("Screenshot", ImageSelector("//div[contains(@class,'pr_page_desc')]/img/@src", FieldSelector.XPATH))])
 
+nefsak_table_selector = ItemSelector([KeyValueSelector("NefsakTable", 
+                                                       TableSelector("table.product-properties", FieldSelector.CSS, TableSelector.TABLE_HHEADERS))])
+
 nefsak_main_page = MainPage(UrlSelector(r"//div[@class='pr_list_title']//a/@href",FieldSelector.XPATH),
-                         nefsak_laptop_info,
+                         nefsak_table_selector,
                          UrlSelector("nefsak\.com/15-17-Screen/\?page=\d+", FieldSelector.REGEX),
                          FieldSelector('//div[contains(@class,"navigation_holder")]', FieldSelector.XPATH))
 

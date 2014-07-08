@@ -25,9 +25,7 @@ class LocatorWebElement(QObject):
     
   def selector(self):
     """Return the element CSS selector as a string"""
-    if not self._selector_searched:
-      self._selector_searched = True
-    else:
+    if self._selector_searched:
       return self._selector
     if self._element.isNull():
       return self._findSelectorByText()
@@ -150,23 +148,39 @@ class LocatorWebElement(QObject):
   def _joinSelectors(self, sel1, sel2):
     return ' '.join([sel1, sel2])
   
-  def _findSelectorByText(self):
-    text = self._element.toPlainText()
-    link_text = self._hit_test_result.linkText()
-    title = self._hit_test_result.title()
-    for something in [text, link_text, title]:
-      if something: text = something; break
-    else: return None # no text found
-    parent_non_null = self._hit_test_result.enclosingBlockElement()
-    while parent_non_null.isNull():
-      parent_non_null = self._element.enclosingBlockElement()
-    # find the child with the text
-    for child in parent_non_null.findAll('*'): # hope this css selector works
-      child_text = child.toPlainText()
-      if child_text == text:
+  def _findSelectorByText(self, elem=None):
+    """For Null elements. Travel up to the parent and check for non-empty text"""
+    if elem is None:
+      parent_non_null = self._hit_test_result.enclosingBlockElement()
+      parent_text = parent_non_null.toPlainText().strip()
+      if parent_text:
+        self._element = parent_non_null
+        return self.selector()
+      children = self._findChildren(parent_non_null)
+    else:
+      children = self._findChildren(elem)
+    for child in children:
+      child_text = child.toPlainText().strip()
+      if child_text:
         self._element = child
-        return self.selector() # recursive!
-    return None
+        return self.selector()
+    else:
+      return self._firstOf([self._findSelectorByText(elem) for elem in children])
+        
+  def _firstOf(self, l):
+    for e in l:
+      if e: return e  
+  
+  def _findChildren(self, webElement):
+    children = []
+    child1 = webElement.firstChild()
+    next_child = child1.nextSibling()
+    if child1:
+      children.append(child1)
+    while next_child:
+      children.append(next_child)
+      next_child = next_child.nextSibling()
+    return children
   
   def selectSimilar(self):
     # find similar QWebElements, if at all, and return them
@@ -181,8 +195,10 @@ class LocatorWebElement(QObject):
     return self._similars_selector
   
   def _setAndReturn(self, selector):
+    self._selector_searched = True
     self._selector = selector
     return selector
   
   def __getattr__(self, attr):
     return getattr(self._element, attr)
+  

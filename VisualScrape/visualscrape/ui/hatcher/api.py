@@ -5,18 +5,9 @@ Created on Jul 5, 2014
 from visualscrape.lib.path import URL, Form, SpiderPath, FormElemInfo, MainPage
 from visualscrape.lib.selector import KeyValueSelector, ItemSelector, ImageSelector, UrlSelector, FieldSelector
 import re
+from django.conf import urls
 
-"""
-item_page_selected = Signal(str)
-similars_selected = Signal(str)
-progress_changed = Signal(int) # emitted whenever the progress changes
-url_changed = Signal(QUrl)
-form_detected = Signal(dict)
-image_download_changed = Signal(bool, str) # emit the image selector
-element_scrape_changed = Signal(bool, str, str) # enabled, fieldname, selector
-# for non-image elements. enabled, fieldname, selector, attribute name (can be empty when deleting selectors)
-attribute_scrape_changed = Signal(bool, str, str, str)
-"""
+
 class BrowserWatcher(object):
   """
   Watches a QWebView signals and creates required information from them.
@@ -25,30 +16,40 @@ class BrowserWatcher(object):
     self._browser = browser
     self._browser.url_changed.connect(self.addUrl)
     self._browser.form_detected.connect(self.addForm)
+    self._browser.item_page_visited.connect(self.stopNavTracking)
     self._browser.image_download_changed.connect(self.addImageUrl)
+    self._browser.element_scrape_changed.connect(self.addField)
+    self._browser.attribute_scrape_changed.connect(self.addAttribute)
+    self._browser.item_page_selected.connect(self.addItemPages)
+    self._browser.pagination_selected.connect(self.addPagnation)
     self._spider_path = SpiderPath()
     self._key_value_selectors = []
+    self._item_pages_selector = None
+    self._pagination_selector = None
+    self._track_nav = True
     
   def addUrl(self, url):
-    url = url.toString()
-    self._spider_path.add_step(URL(url))
+    if self._track_nav:
+      url = url.toString()
+      self._spider_path.add_step(URL(url))
     
   def addForm(self, formDict):
     """This form belongs to the previous URL. So the URL should be taken from
        there and used with the form instead. Hopefully, the start url is also emitted."""
-    last_url = self._spider_path.pop_step()
-    form_data = []
-    for elem_name in formDict:
-      elem_value = formDict["value"]
-      elem_type = formDict["type"]
-      elem_type = elem_type.lower()
-      if elem_type == "select":
-        elem_type = FormElemInfo.INPUT_SELECT
-      elif elem_type == "text":
-        elem_type = FormElemInfo.INPUT_TEXT
-      form_data.append(FormElemInfo(elem_name, elem_value, elem_type))
-    form = Form(last_url, form_data)
-    self._spider_path.add_step(form)
+    if self._track_nav:
+      last_url = self._spider_path.pop_step()
+      form_data = []
+      for elem_name in formDict:
+        elem_value = formDict["value"]
+        elem_type = formDict["type"]
+        elem_type = elem_type.lower()
+        if elem_type == "select":
+          elem_type = FormElemInfo.INPUT_SELECT
+        elif elem_type == "text":
+          elem_type = FormElemInfo.INPUT_TEXT
+        form_data.append(FormElemInfo(elem_name, elem_value, elem_type))
+      form = Form(last_url, form_data)
+      self._spider_path.add_step(form)
   
   def addImageUrl(self, add, selector):
     if add:
@@ -68,11 +69,43 @@ class BrowserWatcher(object):
       union = image_kv_selector.value_selector
       css_selector = self._removeSelectorFromUnion(selector, union)
       self._key_value_selectors.append(KeyValueSelector("Images", ImageSelector(css_selector, FieldSelector.CSS)))
+      
+  def addField(self, add, fieldName, selector):
+    selector = selector + "::text"
+    kv_sel = self._findSelectorByField(fieldName, remove=True)
+    if add:
+      if kv_sel:
+        value_sel = kv_sel.value_selector # assuming it's a regular FieldSelector
+        css = self._unionCSS(selector, value_sel)
+      else:
+        css = selector
+      self._key_value_selectors.append(KeyValueSelector(fieldName, FieldSelector(css, FieldSelector.CSS)))
+    else:
+      self._findSelectorByField(fieldName, remove=True)
+    
+  def addAttribute(self, add, fieldName, selector, attrName):
+    # assuming one-to-one relationship between attributes and fields
+    self._findSelectorByField(fieldName, remove=True) # remove the field if it already exists
+    if add:
+      selector = ''.join([selector, "::", attrName])
+      self._key_value_selectors.append(KeyValueSelector(fieldName, FieldSelector(selector, FieldSelector.CSS)))
+    else: pass # already done
+  
+  def addItemPages(self, selector):
+    selector = selector + "::href"
+    self._item_pages_selector = UrlSelector(selector, FieldSelector.CSS, action=UrlSelector.ACTION_VISIT)
+    
+  def addPagination(self, selector):
+    selector = selector + "::href"
+    self._pagination_selector = UrlSelector(selector, FieldSelector.CSS, action=UrlSelector.ACTION_VISIT)
+    
+  def stopNavTracking(self):
+    self._track_nav = False
   
   def _unionCSS(self, selector1, selector2):
     return ', '.join([selector1, selector2]) # union the selectors together
   
-  def _removeSelectorFromUnion(self, selector, union):
+  def _removeSelectorFromUnion(self, selector, union, attribute="::text"):
     selector = selector.strip()
     union = union.strip()
     css = re.sub(selector + "(, )?", '', union, re.IGNORECASE)

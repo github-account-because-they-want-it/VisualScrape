@@ -96,7 +96,7 @@ class MouseSensitiveWebView(QWebView):
       painter.restore()
       # Each similars group should be drawn with it's own shade
       for field_info in self._fields_info:
-        if field_info.similars_selected:
+        if field_info.pagination_selected:
           similars = field_info.web_element.selectSimilars()
           similars_shade = field_info.similars_shade
           for similar in similars:
@@ -216,7 +216,8 @@ class NotifierWebView(MouseSensitiveWebView):
   """A web view with a notification message"""
   
   item_page_selected = Signal(str)
-  similars_selected = Signal(str)
+  pagination_selected = Signal(str)
+  item_page_visited = Signal()
   
   def __init__(self, parent=None):
     super(NotifierWebView, self).__init__(parent)
@@ -264,7 +265,7 @@ class NotifierWebView(MouseSensitiveWebView):
     elem_field_info = FieldInfo("pagination", hit_elem, colourClass=ColourClasses.CLASS_PAGINATION,
                                 similarsSelected=True, associatedAction=ActionTypes.ACTION_MARK_PAGINATION)
     self._fields_info.append(elem_field_info)
-    self.similars_selected.emit(hit_elem.selector()) 
+    self.pagination_selected.emit(hit_elem.selector()) 
     self._pagination_selected = True
     self.update()
     self._checkGoToItemPage()
@@ -281,3 +282,4 @@ class NotifierWebView(MouseSensitiveWebView):
       url = url.canonicalize(self.url())
       self._mainpage_checker.hide()
       self.setUrl(url)
+      self.item_page_visited.emit()

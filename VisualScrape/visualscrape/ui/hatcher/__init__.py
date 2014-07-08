@@ -105,5 +105,27 @@ Ok. The action wizard will allow a field to be populated. Whether to add it to a
 existing field, or to a new field.
 I think I'm done. Where should I start?.
 I can create the Action menu, and layout with the browser and tables. I think a table view will be
-good, since it has an icon role or something like that. 
+good, since it has an icon role or something like that.
+I think I can enhance the current state of element selection by 2 ways:
+1- descending to children in findByText
+2- Having an API TableSelector which scrapes every text node in the table. or the first 2 columns
+First, me browsing other people's advanced stuff and sometimes boring, fills me with
+ both boredom and fear. I've learnt along my programming path till now. Sometimes I care
+too much about the end results. Will it be good, competitive. Some tools are even free of charge.
+Why am I doing this, afterall?. if not for money. What else do I have to do, anyway. I have things
+I want to learn, but I need to apply somewhere. Having this app in-place will help.
+It can also be a good advertisement of my abilities. So I'm not losing. Have fun.
+Now for the table selectors. How'll you go about that?
+it seems now that tables can actually be more than 2 columns.though what?.
+I always used tables in a key-value relationship. And it has always been fine.
+There are some table styles it seems. Not one style:
+1- Headers (keys) at top with values in <td>s some rows may have a rowspan property for grouping. 
+2- Headers left and values right (which is the type of most commercial tables).
+These are the table types I know of. The problem is with the tables with non-even column count. These
+may not be much, but it's good to consider them.
+So. There will be a table selector in the API. This one won't concern itself with
+figuring out the table type. This will be done at the user/GUI level.
+The table selectors should be passed on through a preprocessing stage, right?
+Why?. to get the key/value from them. No. Keys and values won't be available until we are on the
+page. The table selection will be kept dynamic, to avoid extra rows.
 """

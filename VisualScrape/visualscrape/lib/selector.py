@@ -69,6 +69,14 @@ class ImageSelector(FieldSelector):
   def __unicode__(self):
     return super(ImageSelector, self).__unicode__().replace("Field", "Image")
 
+class TableSelector(FieldSelector):
+  """Automatic table scraping to avoid tedious and error-prone key-value selection"""
+  TABLE_VHEADERS = 1 # keys top, values downwards. can have rowspan
+  TABLE_HHEADERS = 2 # keys left, values right. even column count
+  
+  def __init__(self, selector, type, tableType=TABLE_HHEADERS):
+    super(TableSelector, self).__init__(selector, type)
+    self.table_type = tableType
 
 class ContentSelector(object):
   

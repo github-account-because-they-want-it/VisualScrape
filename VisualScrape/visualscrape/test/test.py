@@ -43,7 +43,7 @@ class Test(unittest.TestCase):
     #egyprices_handler = main.addSpider("EgypricesLaptopSpider")
     nefsak_path = SpiderPath()
     egyprices_path = SpiderPath()
-    nefsak_path.add_step(nefsak_url).add_step(nefsak_content_main_page)
+    nefsak_path.add_step(nefsak_url).add_step(nefsak_main_page)
     egyprices_path.add_step(egyprices_url).add_step(egyprices_main_page)
     engine = CrawlEngine()
     engine.add_spider("NefsakLaptopSpider").set_path(nefsak_path).register_handler(nefsak_handler).start()

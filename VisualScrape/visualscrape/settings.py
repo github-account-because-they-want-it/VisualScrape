@@ -27,7 +27,7 @@ SCRAPER_CLASSES = {"visualscrape.lib.scrapylib.ScrapyCrawler" : _spidertypes.TYP
 
 ITEM_LOADER = "visualscrape.lib.scrapylib.itemloader.DefaultItemLoader"
 
-DOWNLOAD_FAVICON = False
+DOWNLOAD_FAVICON = True
 
 FEED_FORMAT = "json"
 FEED_URI = "file:///C:/Users/Tickler/Desktop/example.json"

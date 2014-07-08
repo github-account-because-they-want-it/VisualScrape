@@ -43,12 +43,12 @@ class FieldInfo(object):
                associatedAction=ActionTypes.ACTION_SCRAPE_TEXT):
     self.field_name = fieldName
     self.web_element = webElement
-    self.similars_selected = similarsSelected
+    self.pagination_selected = similarsSelected
     self.colour = ColourClasses.colorByClass(colourClass)
     self.action_type = associatedAction
     
   def setSimilarsSelected(self, state=True):
-    self.similars_selected = state
+    self.pagination_selected = state
     
   def setActionType(self, actionType=ActionTypes.ACTION_SCRAPE_TEXT):
     self.action_type = actionType
@@ -56,7 +56,7 @@ class FieldInfo(object):
   def __eq__(self, other):
     return self.field_name == other.field_name and \
            self.web_element == other.web_element  and \
-           self.similars_selected == other.similars_selected
+           self.pagination_selected == other.pagination_selected
   
   def __str__(self):
     return "<FieldInfo : <field name : {}>".format(self.field_name)

@@ -4,7 +4,8 @@ Created on Jun 18, 2014
 '''
 from scrapy.selector import Selector
 from scrapy.utils.misc import load_object
-from visualscrape.lib.selector import FieldSelector, ContentSelector, ImageSelector
+from visualscrape.lib.selector import FieldSelector, ContentSelector, ImageSelector,\
+  TableSelector
 from visualscrape.config.reader import Setting
 from visualscrape.config import settings
 from visualscrape import settings as setting_module
@@ -91,6 +92,7 @@ class CommonCrawler(object):
     """Fill an item loader with data from itemInfo and response"""
     from visualscrape.lib.scrapylib.scrapy_crawl import ScrapyCrawler
     import visualscrape.lib.seleniumlib.selenium_crawl as selenium_mod
+    table_selectors = [] # pack them because their processing differs from the rest
     for (key, value_selector) in zip(itemInfo["keys"], itemInfo["values"]):
       if isinstance(value_selector, ContentSelector):
         restricted = self._selectFrom(value_selector.restrict_selector, value_selector.restrict_selector.type, response)
@@ -116,6 +118,8 @@ class CommonCrawler(object):
             break
         else: value = '' # no value found for the selector. empty text
         itemLoader.add_value(key, value)
+      elif isinstance(value_selector, TableSelector):
+        table_selectors.append(value_selector)
       elif isinstance(value_selector, FieldSelector):
         if value_selector.type == FieldSelector.CSS:
           if isinstance(value_selector, ImageSelector):
@@ -127,6 +131,11 @@ class CommonCrawler(object):
             itemLoader.add_xpath("image_urls", value_selector)
           else:
             itemLoader.add_xpath(key, value_selector)
+    for table_selector in table_selectors:
+      if table_selector.table_type == TableSelector.TABLE_HHEADERS:
+        self._populateItemLoaderFromHTable(itemLoader, response, table_selector)
+      elif table_selector.table_type == TableSelector.TABLE_VHEADERS:
+        self._populateItemLoaderFromVTable(itemLoader, response, table_selector)
     if isinstance(self, selenium_mod.SeleniumCrawler):
       self._loadPageActions(itemLoader)
     itemLoader.add_value("_id", self._id)
@@ -142,6 +151,7 @@ class CommonCrawler(object):
     return item
   
   def _selectFrom(self, selector, selectorType, response):
+    """Apply the selector to response by selectorType without extraction"""
     sel = Selector(response)
     if selectorType == FieldSelector.CSS:
       elems = sel.css(selector)
@@ -149,6 +159,97 @@ class CommonCrawler(object):
       elems = sel.xpath(selector)
     return elems
   
+  def _populateItemLoaderFromHTable(self, itemLoader, response, tableSelector):
+    table = self._selectFrom(tableSelector, tableSelector.type, response)
+    # scrape the the largest even numbers of keys/values
+    rows = table.css("tr")
+    for row in rows:
+      tds = row.css("td")
+      if len(tds) == 1: continue # this can be a title data
+      for tdi in range(0, len(tds), 2): # this shouldn't execute for td-less rows
+        key = self._findTextWithinElement(tds[tdi]) # note that text nodes may not be directly inside td. think <td><bold>...
+        key = self._filterKey(key) # only HTables are considered to be liable to have extra characters for me
+        if not key:
+          continue # skip non-valid keys
+        try:
+          value = self._findTextWithinElement(tds[tdi + 1])
+        except IndexError:
+          value = ''
+        itemLoader.item.fields[key] = {} # hack the item loader to allow a field not in the original item
+        itemLoader.add_value(key, value)
+  
+  def _populateItemLoaderFromVTable(self, itemLoader, response, tableSelector):
+    table = self._selectFrom(tableSelector, tableSelector.type, response)
+    # find a row with some th elements and take it as your keys
+    # TODO: this needs debugging. There is a problem when there's more that 1 active row span 
+    keys = []
+    rows = table.css("tr")
+    # first get the keys
+    for (i, row) in enumerate(rows):
+      headers = row.css("th")
+      if headers:
+        keys = [self._findTextWithinElement(header) for header in headers]
+        break
+    # search for values after where you found the keys
+    data_rows = rows[i+1:]
+    active_row_spans = [] # a list of 4-tuples of (rowspan, span_column, span_data, processed_rows)
+    values = [] # an array of arrays (rows)
+    for (row_i, data_row) in enumerate(data_rows):
+      values.append([])
+      tds = data_row.css("td")
+      for (coli, td) in enumerate(tds):
+        row_span = td.xpath("./@rowspan")
+        if row_span:
+          row_span = int(row_span.extract()[0])
+          active_row_spans.append((row_span, coli, self._findTextWithinElement(td), 0))
+        # row spans in place. Now check if (any) current td is inside a span
+        for (spi, (row_span, span_column, span_data, processed_rows)) in enumerate(active_row_spans):
+          if coli == span_column: # i.e, inside an active span
+            values[row_i].append(span_data)
+            if processed_rows != 0: # do not add the row span twice in the row you found it
+              values[row_i].append(self._findTextWithinElement(td))
+            processed_rows += 1
+            if processed_rows == row_span:
+              active_row_spans.pop(spi)
+            else:
+              active_row_spans[spi] = (row_span, span_column, span_data, processed_rows)
+            break
+        else: # td not currently in a row span
+          values[row_i].append(self._findTextWithinElement(td))
+    for (key, value) in zip(keys, values):
+      itemLoader.item.fields[key] = {}
+      itemLoader.add_value(key, value)
+  
+  def _findTextWithinElement(self, selector):
+    """
+    Joins all the texts found within element with the space character
+    selector -- scrapy selector object
+    """
+    parent_text = self._getStrippedText(selector) # everybody has got text I think. so this shouldn't raise IndexError
+    if parent_text: return parent_text
+    subelements = selector.css('*')
+    texts_found = []
+    for element in subelements:
+      elem_text = self._getStrippedText(element)
+      if "CDATA" in elem_text: continue # that's a part of the document not intended to be visible
+      texts_found.append(elem_text)
+    return ' '.join(texts_found)
+  
+  def _getStrippedText(self, selector):
+    text = selector.css("::text").extract()
+    if text:
+      text = text[0].strip()
+      if text:
+        return text
+      else:
+        return ''
+    else:
+      return ''
+    
+  def _filterKey(self, keyText):
+    # removes non-character text from the end of key, like (:)
+    return re.sub("[^\w]$", '', keyText, flags=re.UNICODE)
+    
   @staticmethod
   def get_item_loader_for(startUrl):
     """Used by spider managers to get item loaders for spiders, because it can be spider-specific"""
