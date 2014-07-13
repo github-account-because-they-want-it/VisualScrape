@@ -333,11 +333,6 @@ class SpiderTab(QWidget):
       data = self._data_table.get_visible_data()
       FileExporter.export(data, self._data_table.name.lower(), export_info.location, export_info.format)
   
-  def contextMenuEvent(self, cme):
-    rel_pos = cme.pos()
-    global_pos = self.mapToGlobal(rel_pos)
-    self._context_menu.popup(global_pos)
-    
   def set_event_queue(self, eq):
     self._event_queue = eq
     
@@ -354,6 +349,7 @@ class SpiderTab(QWidget):
         confirm_stop.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         confirm_stop.setText(self.tr("Scraping process still running"))
         confirm_stop.setDetailedText(self.tr("Are you sure you want to stop it?"))
+        confirm_stop.setWindowTitle(self.tr("Spider still running"))
         ret = confirm_stop.exec_()
         if ret == QMessageBox.Yes:
           self.stop_spider_signal.emit(self._spider_id)
@@ -468,7 +464,7 @@ class SearchHighlighterLabel(QLabel):
     string_template = self._original_text
     highlight_color_string = self._getColorString(self._highlight_color)
     string_template = string_template.replace(searchText, 
-                          "<font color='{0}'>{1}</font>".format(highlight_color_string, searchText))
+                          "<font color='{0}'><bold>{1}</bold></font>".format(highlight_color_string, searchText))
     self.setText(string_template)
      
   def _getColorString(self, color):

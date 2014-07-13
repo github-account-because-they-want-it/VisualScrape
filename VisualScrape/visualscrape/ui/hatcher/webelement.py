@@ -5,6 +5,7 @@ Created on Jul 5, 2014
 
 from PySide.QtCore import QRect, QObject
 from scrapy.selector import Selector
+from visualscrape.lib.selector import TableSelector
 
 class LocatorWebElement(QObject):
   """A web element that can return it's selector in the page"""
@@ -80,7 +81,7 @@ class LocatorWebElement(QObject):
     elif len(matches) > 1 and not self._similars_found:
       possible_similars = self_webframe.findAllElements(selector)
       if self._allSimilar(possible_similars):
-        self._current_similars = possible_similars
+        self._current_similars = possible_similars.toList()
         self._similars_found = True
         self._similars_selector = selector
     else: return False
@@ -165,7 +166,7 @@ class LocatorWebElement(QObject):
         self._element = child
         return self.selector()
     else:
-      return self._firstOf([self._findSelectorByText(elem) for elem in children])
+      return self._firstOf((self._findSelectorByText(elem) for elem in children))
         
   def _firstOf(self, l):
     for e in l:
@@ -202,3 +203,18 @@ class LocatorWebElement(QObject):
   def __getattr__(self, attr):
     return getattr(self._element, attr)
   
+class TableLocator(LocatorWebElement):
+  
+  def __init__(self, *args):
+    super(TableLocator, self).__init__(*args)
+    assert self._element.tagName().upper() == "TABLE", "Element is not a table. Use LocatorWebElement instead"
+    
+  def tableType(self):
+    """return the table type as a TableSelector constant
+       it's as simple as that now: if the table contains <th>, then
+       its a vertical table otherwise else!
+    """
+    ths = self._element.findAll("th").toList()
+    if ths:
+      return TableSelector.TABLE_VHEADERS
+    return TableSelector.TABLE_HHEADERS

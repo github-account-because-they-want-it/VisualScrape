@@ -76,8 +76,8 @@ class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
       if self._stopped: break
     if self._stopped: raise CloseSpider()
     item_selector = self._spider_path[-1].item_selector
-    key_value_selectors = item_selector.key_value_selectors
-    item_info = self.get_item_info(key_value_selectors, response)
+    selectors_actions = item_selector.selectors_actions
+    item_info = self.get_item_info(selectors_actions, response)
     item = InterestItem(item_info["keys"])
     item_loader = self.item_loader(item, response=response, response_ctx=response) #pass the response to i/o processors
     item = self.fill_item_loader(item_loader, item_info, response, item_selector.post_process_info)

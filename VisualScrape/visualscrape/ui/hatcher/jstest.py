@@ -2,15 +2,16 @@
 Created on Jun 28, 2014
 @author: Mohammed Hamdy
 '''
-from PySide.QtCore import Signal, QUrl
+from PySide.QtCore import Signal, QUrl, Qt
 from PySide.QtWebKit import QWebView
-from PySide.QtGui import QMainWindow, QVBoxLayout, QWidget, QApplication
-import urllib2, sys
+from PySide.QtGui import QVBoxLayout, QDialog
+import urllib2
 
 class JavaScriptTest(object):
   """
   Run a test and emit a bool signal when finished. True means test succeeded, we can
   use scrapy. False means test failed, so using Selenium or the like is necessary.
+  How can I set up a scrapy run for a path?.
   """
   finished = Signal(bool)
   FAIL_PERCENT = 0.50
@@ -29,27 +30,24 @@ class JavaScriptTest(object):
     else: self.finished.emit(True)
     
   def _runTest1(self):
-    app = QApplication(sys.argv)
     win = self.js_enabled_test
     win.show()
     win.run()
-    app.exec_()
     
   def runTest2(self):
     self.js_disabled_test.run()
     
-class JavaScriptTestBrowserWindow(QMainWindow):
+class JavaScriptTestBrowserWindow(QDialog):
   
   def __init__(self, itemUrl):
     super(JavaScriptTestBrowserWindow, self).__init__()
+    self.setWindowModality(Qt.WindowModality.NonModal)
     self._item_url = itemUrl
     self._content = ''
     layout = QVBoxLayout()
     self.browser = QWebView()
     self.browser.loadFinished.connect(self._setContentAndClose)
-    widget_layout = QWidget()
-    widget_layout.setLayout(layout)
-    self.setCentralWidget(widget_layout)
+    self.setLayout(layout)
     
   def run(self):
     self.browser.setUrl(QUrl(self._item_url))

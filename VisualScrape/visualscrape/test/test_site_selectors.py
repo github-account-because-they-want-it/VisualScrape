@@ -5,8 +5,7 @@ Created on Jun 21, 2014
 from visualscrape.lib.path import URL, MainPage
 from visualscrape.lib.selector import (ItemSelector, FieldSelector, KeyValueSelector, ImageSelector, 
                                        UrlSelector, PostProcessing, Merge, ItemPageAction, ItemPageActions,
-                                       ItemPageAfterActionSelect,
-  ContentSelector, TableSelector)
+                                       ItemPageSelectAction, ContentSelector, TableSelector, ItemPageClickAction)
 
 #www.machinetrader.com
 machinery_selector = ItemSelector([
@@ -148,8 +147,8 @@ cars_item_selector = ItemSelector([
                          KeyValueSelector(FieldSelector("table.datalist tbody tr:nth-child(9) td strong::text", FieldSelector.CSS),
                                           FieldSelector("table.datalist tbody tr:nth-child(9) td:nth-child(2)::text", FieldSelector.CSS)),
                          KeyValueSelector("Images", FieldSelector("//div[@class='item']/img/@src | //img[@id='chosenPhotoIMG']/@src", FieldSelector.XPATH))],
-                                  itemPageActions=ItemPageActions([(ItemPageAction("div.tabs a:nth-child(2)", FieldSelector.CSS, ItemPageAction.ACTION_CLICK),
-                                                                   ItemPageAfterActionSelect("img.photo::src", FieldSelector.CSS, "Images"))])) # | //img[@class='js-thumbnail' and not contains(@src, 'spacer')]/@src
+                                  itemPageActions=ItemPageActions([(ItemPageClickAction("div.tabs a:nth-child(2)", FieldSelector.CSS),
+                                                                   ItemPageSelectAction("img.photo::src", FieldSelector.CSS, "Images"))])) # | //img[@class='js-thumbnail' and not contains(@src, 'spacer')]/@src
 
 cars_main_page = MainPage(itemPageSelector=UrlSelector("h4.secondary a", FieldSelector.CSS, UrlSelector.ACTION_CLICK),
                           itemSelector=cars_item_selector,
@@ -175,8 +174,8 @@ autotrader_item_selector = autotrader_item_selector = ItemSelector([
                                                 FieldSelector("div.atcui-column.atcui-span-5.overview-infobar-subsection:nth-of-type(3) div.atcui-clearfix:nth-child(3) span.atcui-bold::text", FieldSelector.CSS)),
                                KeyValueSelector("Seller Comment", FieldSelector("div.overview-comments p:nth-child(2)::text", FieldSelector.CSS)),     
                                KeyValueSelector("Images", FieldSelector("//div[@id='evePhoto']/img/@src", FieldSelector.XPATH))] # //div[@class='eve-photo']/img/@src | //img[@class='thumbnailImage']/@src"
-                                                                   ,itemPageActions=ItemPageActions([(ItemPageAction("img.thumbnailImage", FieldSelector.CSS, action=ItemPageAction.ACTION_CLICK),
-                                                                                                      ItemPageAfterActionSelect("//div[@id='evePhoto']/img/@src", FieldSelector.XPATH, outputField="Images"))]))
+                                                                   ,itemPageActions=ItemPageActions([(ItemPageClickAction("img.thumbnailImage", FieldSelector.CSS),
+                                                                                                      ItemPageSelectAction("//div[@id='evePhoto']/img/@src", FieldSelector.XPATH, outputField="Images"))]))
 
 autotrader_main_page = MainPage(itemPageSelector=UrlSelector("a.vehicle-title", FieldSelector.CSS),
                                 itemSelector=autotrader_item_selector,

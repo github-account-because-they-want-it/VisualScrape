@@ -1,0 +1,11 @@
+<!DOCTYPE RCC><RCC version="1.0">
+  <file alias="arrow_up">icons/arrow_up.png</file>
+  <file alias="arrow_down">icons/arrow.png</file>
+  <file alias="close_hover">icons/close_btn_hover.png</file>
+  <file alias="close_normal">icons/close_btn_nohover.png</file>
+  <file alias="default_fav">icons/document_blank.png</file>
+  <file alias="mark_main">icons/mark_as_main.png</file>
+  <file alias="unmark_main">icons/unmark_as_main.png</file>
+  <file alias="done">icons/button_done.png</file>
+  <file alias="done_pressed">icons/button_done_pressed.png</file>
+</RCC>

@@ -7,7 +7,8 @@ from scrapy.http import TextResponse
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import Selector
 import os, urlparse, sys, time
-from visualscrape.lib.selector import FieldSelector, UrlSelector, ItemPageAction, ItemPageAfterActionSelect
+from visualscrape.lib.selector import (FieldSelector, UrlSelector, ItemPageClickAction, ItemPageScrollDistanceAction, 
+     ItemPageScrollToElementAction, ItemPageActionAbsoluteWait, ItemPageScrollUntilAction)
 from visualscrape.lib.pipeline_handler import PipelineHandler
 from visualscrape.lib.item import InterestItem, FaviconItem
 from visualscrape.lib.util import download_image
@@ -43,7 +44,7 @@ class SeleniumDataHandlerMixin(object):
       time.sleep(self._sleep_timeout)
     #find an item from the item browser and return it
     item_selector = self._spider_path[-1].item_selector
-    key_value_selectors = item_selector.key_value_selectors
+    key_value_selectors = item_selector.selectors_actions
     item_browser = self.get_item_browser()
     response = TextResponse(item_browser.current_url, body=item_browser.page_source, encoding="utf-8")
     item_info = self.get_item_info(key_value_selectors, response)
@@ -158,39 +159,62 @@ class SeleniumDataHandlerMixin(object):
       new_links = [link for link in new_links if not link in self._visited_urls_before_shutdown]
     return new_links
   
-  def _loadPageActions(self, itemLoader):
-    page_actions = self._spider_path[-1].item_selector.item_page_actions
+  def _performPageActions(self, itemLoader):
+    item_selector = self._spider_path[-1].item_selector
+    page_actions = []
+    for selector_action in item_selector:
+      if isinstance(selector_action, (ItemPageClickAction, ItemPageScrollDistanceAction, 
+                                      ItemPageScrollToElementAction, ItemPageActionAbsoluteWait
+                                      , ItemPageScrollUntilAction)):
+        page_actions.append(selector_action)
     if not page_actions: return itemLoader
-    for action, after_action in page_actions:
-      after_selector = after_action.selector
-      after_selector_type = after_action.selector_type
-      output_field = after_action.output_field
-      after_selector, after_attribute = self._splitSelector(after_selector, after_selector_type)
-      if action.type == ItemPageAction.ACTION_CLICK:
+    for action in page_actions:
+      if isinstance(action, ItemPageClickAction):
         item_browser = self.get_item_browser()
         action_selector = action.selector
         action_selector_type = action.selector_type
         # find the [ELEMENTS] to click or whatever
-        if action_selector_type == FieldSelector.CSS:
-          action_elems = item_browser.find_elements_by_css_selector(action_selector)
-        elif action_selector_type == FieldSelector.XPATH:
-          action_elems = item_browser.find_elements_by_xpath(action_selector)
+        action_elems = self._selectBy(item_browser, action_selector, action_selector_type)
         for action_elem in action_elems:
           action_elem.click() # wait?
           self._wait(item_browser)
-          if isinstance(after_action, ItemPageAfterActionSelect):
-            if after_selector_type == FieldSelector.CSS:
-              extra_elems = item_browser.find_elements_by_css_selector(after_selector)
-            elif after_selector_type == FieldSelector.XPATH:
-              extra_elems = item_browser.find_elements_by_xpath(after_selector)
-            if after_attribute == "text" or not after_attribute:
-              extra_values = [extra_elem.text for extra_elem in extra_elems]
-            else:
-              extra_values = [extra_elem.get_attribute(after_attribute) for extra_elem in extra_elems]
-            
-            itemLoader.add_value(output_field, extra_values)
+      elif isinstance(action, ItemPageScrollDistanceAction):
+        item_browser = self.get_item_browser()
+        distance = action.distance
+        item_browser.execute_script("window.scrollBy(0, {});".format(distance))
+      elif isinstance(action, ItemPageScrollToElementAction):
+        # to faciliate easier selection, enable JQuery on the browser
+        item_browser = self.get_item_browser()
+        self._enableJQueryOn(item_browser)
+        target_selector = action.selector
+        target_selector_type = action.selector_type
+        if target_selector_type == FieldSelector.CSS: # I'll assume they are all CSS for now
+          item_browser.execute_script("$({}).get().scrollIntoView();".format(target_selector))
+      elif isinstance(action, ItemPageActionAbsoluteWait):
+        time.sleep(float(action.time) / 1000 )
+      elif isinstance(action, ItemPageScrollUntilAction):
+        # this is a crude implementation, since the content might have already been changed by this time
+        item_browser = self.get_item_browser()
+        original_page_source = item_browser.page_source
+        original_len = len(original_page_source)
+        # scroll the browser to the bottom, to get new content
+        item_browser.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+        timeout = action.timeout
+        wait_sum = 0
+        while wait_sum < timeout and len(item_browser.page_source) == original_len:
+          time.sleep(1)
+          wait_sum += 1000 # msecond   
+  
+  def _enableJQueryOn(self, browser):
+    already_jquery =  browser.execute_script("return typeof jQuery == 'undefined'")
+    if not already_jquery:
+      browser.execute_script("""var jq = document.createElement('script');
+      jq.src = '//code.jquery.com/jquery-1.11.0.min.js';
+      document.getElementsByTagName('head')[0].appendChild(jq);
+      """)
   
   def _splitSelector(self, selector, selectorType):
+    """Return a selector and an attribute to select from selector, selectorType"""
     if selectorType == FieldSelector.CSS:
       attr_start = selector.rfind("::")
       if attr_start < 0: return selector, ''
@@ -208,6 +232,13 @@ class SeleniumDataHandlerMixin(object):
         selector = selector[:attr_start]
         return selector, attr
       else: return selector, ''
+      
+  def _selectBy(self, browser, selector, selectorType):
+    if selectorType == FieldSelector.CSS:
+      selected = browser.find_elements_by_css_selector(selector)
+    elif selectorType == FieldSelector.XPATH:
+      selected = browser.find_elements_by_xpath(selector)
+    return selected
   
   def make_profile_dir(self):
     """Create a profile folder with a prefix and randomized name part. The bug is within selenium.

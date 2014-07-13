@@ -128,4 +128,30 @@ figuring out the table type. This will be done at the user/GUI level.
 The table selectors should be passed on through a preprocessing stage, right?
 Why?. to get the key/value from them. No. Keys and values won't be available until we are on the
 page. The table selection will be kept dynamic, to avoid extra rows.
+I was talking about the damn javascript test. How to get it performed in the GUI?.
+A semi-transparent overlay.
+A silly animation coming from the down side.
+Announcing it in the status bar.
+Replacing the browser and line edit with a white-background widget with some nice text 
+and a loading animation.
+I've gone with the last option.
+SHould I put the Done browsing button on the browser or on the main wwindow?
+It will suck on the main window. Let's keep it here.
+I think the inheritance structure for the browser currently needs to ch browsers
+will be for selection with a crawling intention. 
+I think that making page actions as a list, instead of the current before/after 
+sshit list, will make things more flexible.
+Ok. I think the API is now fixed. Now I should track these actions on the 
+GUI level.
+How should I do that?. Let's start with the clicks.
+These should be easy. If there's something that's clicked it's mostly
+a link.the link can lead to a new page but this shouldn't be recorded.
+I can generally track mouse press events.
+What about scrolls?. There should be a couple of buttons on the toolbar to enable the tracking
+of scrolling and clicking.
+Ok. Details about scroll tracking please.
+The scroll disance may not be all that reliable. say that the browser that the scrolling
+happened at had a different resolution than the one that actually performs it.
+So I think the best bet is to track the scrolls which lead to new content
+generation.
 """

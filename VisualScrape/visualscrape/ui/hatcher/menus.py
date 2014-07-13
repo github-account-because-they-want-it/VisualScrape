@@ -4,6 +4,14 @@ Created on Jul 5, 2014
 '''
 from PySide.QtGui import QMenu, QAction, QActionGroup
 
+class ImageActionGroup(QActionGroup):
+  def __init__(self, parent=None):
+    super(ImageActionGroup, self).__init__(parent)
+    self.action_download_image = DownloadImageAction()
+    self.addAction(self.action_download_image)
+    self.action_scrape_attribute = ScrapeAttributeAction()
+    self.addAction(self.action_scrape_attribute)
+    self.setExclusive(True)
 
 class ScrapeAttributeAction(QAction):
   def __init__(self, parent=None):
@@ -62,6 +70,18 @@ class SkipPaginationAction(QAction):
     self.setShortcut(self.tr("Ctrl+SHIFT+P", "Options|Skip pagination links"))
     self.setCheckable(True)
     
+class HighlightTablesAction(QAction):
+  def __init__(self, parent=None):
+    super(HighlightTablesAction, self).__init__(parent)
+    self.setText(self.tr("Highlight tables"))
+    
+class ScrapeTableAction(QAction):
+  def __init__(self, parent=None):
+    super(ScrapeTableAction, self).__init__(parent)
+    self.setText(self.tr("Scrape table"))
+    self.setToolTip(self.tr("Attempt scraping the table's keys and values"))
+    self.setCheckable(True)
+    
 #------------------------ MENUS --------------------------------#
 class ActionMenu(QMenu):
   
@@ -102,14 +122,6 @@ class ImageRightclickMenu(ResettableMenu):
     elif actionType == ActionTypes.ACTION_SCRAPE_ATTRIBUTE:
       self.action_scrape_attribute.setChecked(True)
     
-class ImageActionGroup(QActionGroup):
-  def __init__(self, parent=None):
-    super(ImageActionGroup, self).__init__(parent)
-    self.action_download_image = DownloadImageAction()
-    self.addAction(self.action_download_image)
-    self.action_scrape_attribute = ScrapeAttributeAction()
-    self.addAction(self.action_scrape_attribute)
-    self.setExclusive(True)
 
 class ElementRightClickMenu(ResettableMenu):
   def __init__(self, parent=None):
@@ -120,6 +132,8 @@ class ElementRightClickMenu(ResettableMenu):
     self.addAction(self.action_scrape_attribute)
     self.action_select_similar = SelectSimilarAction()
     self.addAction(self.action_select_similar)
+    self.action_highlight_tables = HighlightTablesAction()
+    self.addAction(self.action_highlight_tables)
     self.mark_menu = MarkAsMenu(self)
     self._checkable_actions = [self.action_scrape_text, self.action_scrape_attribute]
     
@@ -160,3 +174,11 @@ class ActionTypes(object):
   ACTION_DOWNLAOD_IMAGE = 2
   ACTION_MARK_ITEM_PAGE = 3
   ACTION_MARK_PAGINATION = 4
+  ACTION_HIGHLIGHT_TABLES = 5
+  ACTION_SCRAPE_TABLE = 6
+  
+class ScrapeTableMenu(QMenu):
+  def __init__(self, parent=None):
+    super(ScrapeTableMenu, self).__init__(parent)
+    self.action_scrape_table = ScrapeTableAction()
+    self.addAction(self.action_scrape_table)

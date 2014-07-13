@@ -36,7 +36,7 @@ class Setting(object):
     self.circular = circular #whether to return the first setting after exhausting all of them or not
     # read my _value from the module and configure accordingly
     self.iterable = False
-    self.index = 0
+    self._index = 0
     self._value = getattr(settingsModule, self.name)
     self._handler = SettingHandler(self.name, self._value)
     if isinstance(self._value, dict) or isinstance(self._value, list):
@@ -60,15 +60,15 @@ class Setting(object):
   def next(self):
     if not self.iterable:
       raise TypeError("Setting <{0}> is not iterable".format(self.name))
-    elif self.index == len(self._value):
+    elif self._index == len(self._value):
       if not self.circular:
         raise StopIteration("Values for setting <{0}> exhausted".format(self.name))
       else:
-        self.index = 0
-        return self.valueFromIndex(self.index)
-    elif self.index < len(self._value):
-      self.index += 1
-      return self.valueFromIndex(self.index - 1)
+        self._index = 0
+        return self.valueFromIndex(self._index)
+    elif self._index < len(self._value):
+      self._index += 1
+      return self.valueFromIndex(self._index - 1)
   
   def __str__(self):
     return "<Setting {0}>".format(self.name)

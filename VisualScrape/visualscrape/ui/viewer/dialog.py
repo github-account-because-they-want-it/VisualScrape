@@ -43,7 +43,7 @@ class ExportDialog(QDialog):
     layout_main.addWidget(button_export, row, col)
     col += 1
     layout_main.addWidget(button_cancel, row, col)
-    self.setWindowTitle("Export Parameters")
+    self.setWindowTitle(self.tr("Export Parameters"))
     self.setLayout(layout_main)
     
   def data(self):
@@ -74,7 +74,7 @@ class AlreadyExistsDialog(QMessageBox):
   CANCEL = 2
   def __init__(self, fname, parent=None):
     super(AlreadyExistsDialog, self).__init__(parent)
-    self.setText(self.tr("{0} already exists".format(os._spider_path.normpath(fname))))
+    self.setText(self.tr("{0} already exists".format(os.path.normpath(fname))))
     self.setStandardButtons(QMessageBox.Cancel)
     self.button_overwrite = self.addButton(self.tr("Overwrite"), QMessageBox.ActionRole)
     self.setWindowTitle(self.tr("Warning"))

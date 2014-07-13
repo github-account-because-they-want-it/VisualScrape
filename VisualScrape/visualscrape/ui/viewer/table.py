@@ -126,7 +126,7 @@ class SearchTable(ScrapeDataTable):
       return
     # hide all rows in which the query doesn't match the specified column
     self._visible_rows = []
-    search_col_index = self._headers.index(column_name)
+    search_col_index = self._headers._index(column_name)
     query = query.lower()
     query_words = re.split("\s+", query)
     for i in range(self.rowCount()):

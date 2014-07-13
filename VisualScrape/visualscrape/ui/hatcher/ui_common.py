@@ -3,19 +3,22 @@ Created on Jul 6, 2014
 @author: Mohammed Hamdy
 '''
 from PySide.QtGui import QWidget, QPainter, QPixmap, QPen, QColor,\
-  QBrush, QFont, QLineEdit, QStyle, QStyleOptionProgressBarV2, QComboBox, QStringListModel
+  QBrush, QFont, QLineEdit, QStyle, QStyleOptionProgressBarV2, QComboBox, QStringListModel,\
+  QPainterPath, QMenu, QLinearGradient, QAction, QLabel, QVBoxLayout, QMovie
 from PySide.QtCore import Qt, QSize, Signal, QRect, QPropertyAnimation,\
-  QEasingCurve
+  QEasingCurve, QPoint
+from collections import deque
+from visualscrape.ui.hatcher.menus import ScrapeTableMenu
 
 class IconWidget(QWidget):
   """A widget that is clickable, has a fixed size and draws
-     an icon. Setting a tooltip is recommended"""
+     an icon which changes opacity on hover. Setting a tooltip is recommended"""
   clicked = Signal()
-  def __init__(self, iconPath, iconSize=(32, 32), hoverOpacity=1, normalOpacity=0.25, parent=None):
+  def __init__(self, iconPath, hoverOpacity=1, normalOpacity=0.25, parent=None):
     super(IconWidget, self).__init__(parent)
-    self.setFixedSize(QSize(iconSize[0], iconSize[1]))
     self.setMouseTracking(True)
-    self._icon_path = iconPath
+    self._icon = QPixmap(iconPath)
+    self.setFixedSize(QSize(self._icon.width(), self._icon.height()))
     self._hover_opacity = hoverOpacity
     self._normal_opacity = normalOpacity
     self._mouse_over = False # this is correct because when an icon appears after another, it appears where the mouse is
@@ -23,7 +26,7 @@ class IconWidget(QWidget):
     
   def paintEvent(self, pe):
     painter = QPainter(self)
-    icon = QPixmap(self._icon_path)
+    icon = QPixmap(self._icon)
     icon = icon.scaled(self.size(), Qt.IgnoreAspectRatio)
     if not self._mouse_over or not self._enabled:
       painter.setOpacity(self._normal_opacity)
@@ -139,7 +142,24 @@ class CheckIconWidget(QWidget):
       painter.setOpacity(self.NORMAL_OPACITY)  
     painter.drawPixmap(0, 0, pixmap)
 
-
+class ButtonWidget(IconWidget):
+  """A widget the changes it's icon when pressed down"""
+  
+  def __init__(self, normalIcon, clickIcon, parent=None):
+    super(ButtonWidget, self).__init__(normalIcon, parent)
+    self._icons = deque([QPixmap(normalIcon), QPixmap(clickIcon)])
+    
+  def mousePressEvent(self, mpe):
+    super(ButtonWidget, self).mousePressEvent(mpe)
+    self._icons.rotate()
+    self._icon = self._icons[0]
+    self.update()
+    
+  def mouseReleaseEvent(self, mre):
+    self._icons.rotate()
+    self._icon = self._icons[0]
+    self.update()
+    
 class MessageWidget(QWidget):
   DEFAULT_MESSAGE_STRING = ''
   DEFAULT_OPACITY = 0.60
@@ -218,10 +238,14 @@ class AnimatedClosableMessage(ClosableMessage):
     self._show_hide_anim.start() 
 
 class ProgressLineEdit(QLineEdit):
+  """A lineedit with a progress bar overlaid"""
   INITIAL_PROGRESS_OPACITY = 0.25
+  text_changed = Signal(str)
+  
   def __init__(self, parent=None):
     super(ProgressLineEdit, self).__init__(parent)
     self._progress = 0
+    self.text_changed.connect(self.setText)
     self.setProperty("_progress_opacity", self.INITIAL_PROGRESS_OPACITY)
     self._progress_finished_anim = QPropertyAnimation(self, "_progress_opacity")
     self._progress_finished_anim.setStartValue(self.INITIAL_PROGRESS_OPACITY)
@@ -263,3 +287,214 @@ class SingleEditCombobox(QComboBox):
     self._items.pop(0)
     self._items.insert(0, text)
     self.combo_output_field.setModel(QStringListModel(self._items))
+class ChangeIconOnClickWidget(QWidget):
+  """A widget that changes the icon on click and waits for a restore
+     event to revert it back"""
+     
+  restored = Signal()
+  
+  def __init__(self, icon, clickIcon, resolution=(16, 16), parent=None):
+    super(ChangeIconOnClickWidget, self).__init__(parent)
+    self._icons = deque([QPixmap(icon), QPixmap(clickIcon)])
+    self.setFixedSize(QSize(resolution[0], resolution[1]))
+    self.restored.connect(self._restoreIcon)
+    
+  def mousePressEvent(self, mpe):
+    self._icons.rotate()
+    self.update()
+    
+  def paintEvent(self, pe):
+    painter = QPainter(self)
+    pixmap = self._icons[0]
+    pixmap = pixmap.scaled(self.size(), Qt.IgnoreAspectRatio)
+    painter.drawPixmap(0, 0, pixmap)
+    
+  def _restoreIcon(self):
+    self._icons.rotate()
+    self.update()
+    
+class HideNotifierMenu(QMenu):
+  """A menu with a hide signal so that my arrow could flip itself back when the menu is gone"""
+  hidden = Signal()
+  
+  def hideEvent(self, he):
+    self.hidden.emit()
+    super(HideNotifierMenu, self).hideEvent(he)
+    
+class ContextualizedChangeOnClickWidget(ChangeIconOnClickWidget): # this name is a programming crime
+  
+  def __init__(self, icon, clickIcon, resolution, contextMenu, parent=None):
+    super(ContextualizedChangeOnClickWidget, self).__init__(icon, clickIcon, resolution, parent)
+    self._context_menu = contextMenu
+    # restore the icon whenever 
+    self._context_menu.hidden.connect(self.restored)
+
+  def mousePressEvent(self, mpe):
+    if mpe.button() == Qt.MouseButton.LeftButton:
+      self._context_menu.popup(mpe.globalPos())
+      super(ContextualizedChangeOnClickWidget, self).mousePressEvent(mpe)
+    
+class DropDownLabel(QWidget):
+  """A widget with an arrow that when clicked shows a context menu"""
+  
+  def __init__(self, clickIcon1, clickIcon2, text, width, parent=None):
+    """Set the width according to the text length"""
+    super(DropDownLabel, self).__init__(parent)
+    self._text = text
+    self._setupContextMenu()
+    self._drop_icon = ContextualizedChangeOnClickWidget(clickIcon1, clickIcon2, resolution=(10, 8),
+                             contextMenu=self._context_menu, parent=self)
+    self.setFixedSize(QSize(width, 20))
+    self._setupContextMenu()
+    self._painter_path = None
+    self._setupPainterPath()
+    self._calculateMeasures()
+    
+  def _setupContextMenu(self):# you may use objects here instead
+    """Override this method and create your context menu as self._context_menu"""
+    self._context_menu = HideNotifierMenu(self)
+    self._action = QAction("Test Action", self._context_menu)
+    self._context_menu.addAction(self._action)
+   
+  def _setupPainterPath(self):
+    painter_path = QPainterPath()
+    painter_path.moveTo(0, 15) #left
+    painter_path.lineTo(0, 0) #up
+    painter_path.lineTo(self.width() - 1, 0) # right
+    painter_path.lineTo(self.width() - 1, 15) # down
+    painter_path.arcTo(QRect(self.width() - 6, 15, 5, 4), 0, -90) # control point1, cp2, destPoint
+    painter_path.lineTo(5, 19) # left
+    painter_path.arcTo(QRect(1, 15, 5, 4), 270, -90) #arc left up
+    painter_path.closeSubpath()
+    self._painter_path = painter_path
+    
+  def _calculateMeasures(self):
+    self._hor_margin = 4
+    self._ver_margin = (self.height() - self._drop_icon.height()) // 2
+    self._drop_icon_pos = QPoint(self.width() - self._drop_icon.width() - self._hor_margin, self._ver_margin)
+    self._grad_start = QPoint(self.width() // 2, self.height()) # bottom-up gradient
+    self._grad_end = QPoint(self.width() // 2, 0)
+    
+  def resizeEvent(self, re):
+    self._drop_icon.move(self._drop_icon_pos) 
+    
+  def paintEvent(self, pe):
+    painter = QPainter(self)
+    painter.save()
+    gradient = QLinearGradient()
+    gradient.setStart(self._grad_start)
+    gradient.setFinalStop(self._grad_end)
+    gradient.setColorAt(0, QColor(230, 230, 230))
+    gradient.setColorAt(1, QColor(247, 247, 247))
+    brush = QBrush(gradient)
+    painter.setBrush(brush)
+    pen = QPen(Qt.black)
+    pen.setWidth(1)
+    painter.setPen(pen)
+    painter.drawPath(self._painter_path)
+    painter.restore()
+    font = QFont()
+    font.setFamily("Tahoma")
+    font.setPixelSize(11)
+    font.setBold(True)
+    pen = QPen(Qt.darkGray)
+    painter.setPen(pen)
+    painter.setFont(font)
+    self_rect = QRect(self.rect())
+    self_rect.moveTo(self._hor_margin, self._ver_margin // 2)
+    painter.drawText(self_rect, Qt.AlignLeft, self._text)
+
+class ScrapeTableDropDownLabel(DropDownLabel):
+  
+  associated_table_scraped = Signal(bool, int) # scraped/unscraped, table _index
+  
+  def __init__(self, icon1, icon2, text, width, index, parent=None):
+    # _index signifies the _index of the table associated with this label in the collection of web tables
+    super(ScrapeTableDropDownLabel, self).__init__(icon1, icon2, text, width, parent)
+    self._index = index
+  
+  def _setupContextMenu(self):
+    self._context_menu = ScrapeTableMenu(self.parent()) # menus should have their parents up the main window
+    self.action_scrape_table = self._context_menu.action_scrape_table
+    self.action_scrape_table.toggled.connect(self._emitTableScraped)
+    
+  def _emitTableScraped(self, yes):
+    self.associated_table_scraped.emit(yes, self._index)
+
+class LoadingWidget(QWidget):
+  """A widget with a little animation for showing progress.
+    Call setMessage to change the secondary message and emit
+    the finished signal with an appropriate string to set as the
+    primary message when done.
+  """
+  finished = Signal(str)
+  animation_finished = Signal()
+  
+  def __init__(self, loadIcon, primaryMessage="Please, Wait", message='', parent=None):
+    super(LoadingWidget, self).__init__(parent)
+    self.finished.connect(self._updateUI)
+    self.setStyleSheet("""
+      QWidget {
+        background-color: #ffffff
+      }
+    """)
+    self._icon_load = loadIcon
+    self._primary_message = primaryMessage
+    self._label_message = QLabel(message)
+    self._label_message.setWordWrap(True)
+    self._label_message.setAlignment(Qt.AlignCenter)
+    self._label_primary_message = QLabel(self._primary_message)
+    self._label_primary_message.setStyleSheet("""
+      QLabel {
+        font-size: 20px;
+        font-weight:bold;
+        color: rgb(65,65,65);
+      }
+    """)
+    self._label_primary_message.setAlignment(Qt.AlignCenter)
+    self._label_movie = QLabel()
+    self._label_movie.setAlignment(Qt.AlignCenter)
+    self._movie = QMovie(self._icon_load)
+    self._label_movie.setMovie(self._movie)
+    self._movie.start()
+    layout = QVBoxLayout()
+    layout.addWidget(self._label_primary_message)
+    layout.addSpacing(5)
+    layout.addWidget(self._label_message)
+    layout.addSpacing(5)
+    layout.addWidget(self._label_movie)
+    layout.addStretch()
+    #self._setupAnimation() # this should be done after showing everything to get correct geometries
+    self.setLayout(layout)
+  
+  def _setupAnimation(self):
+    self._load_animation = QPropertyAnimation(self._label_movie, "geometry")
+    # since the opacity is failing, make it run out of the area!
+    anim_label_geom = self._label_movie.geometry()
+    self._load_animation.setStartValue(anim_label_geom)
+    target_anim_geom = QRect(anim_label_geom)
+    target_anim_geom.moveTop(self.height())
+    # make the animation target a rectangle that's directly under it but shifted downwards outside of parent
+    self._load_animation.setEndValue(target_anim_geom)
+    self._load_animation.setEasingCurve(QEasingCurve.InBack)
+    self._load_animation.setDuration(1000)
+    self._load_animation.finished.connect(self.animation_finished)
+    self._load_animation.finished.connect(self._hideAnimLabel)
+  
+  def setMessage(self, message):
+    self._label_message.setText(message)
+    
+  def _updateUI(self, message=''):
+    if not message:
+      message = "All Done!"
+    self._label_primary_message.setText(message)
+    self._label_message.setText('')
+    self._movie.stop()
+    self._setupAnimation()
+    self.layout().removeWidget(self._label_movie)
+    self._label_movie.setGeometry(self._load_animation.startValue())
+    self._load_animation.start()
+    
+  def _hideAnimLabel(self):
+    self._label_movie.hide()
+    

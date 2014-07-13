@@ -5,7 +5,7 @@ Created on Jun 18, 2014
 from scrapy.selector import Selector
 from scrapy.utils.misc import load_object
 from visualscrape.lib.selector import FieldSelector, ContentSelector, ImageSelector,\
-  TableSelector
+  TableSelector, KeyValueSelector
 from visualscrape.config.reader import Setting
 from visualscrape.config import settings
 from visualscrape import settings as setting_module
@@ -67,24 +67,25 @@ class CommonCrawler(object):
       os.remove(SpiderConfigManager.get_config_file_for(self.name))
     self._stopped = True
   
-  def get_item_info(self, kvSelectors, response):
+  def get_item_info(self, selectorsActions, response):
     """Do field key preprocessing if required and return key-selector map"""
     item_info = {"keys":[], "values":[]}
-    for key_value_selector in kvSelectors:
-      # keys can be either strings or selectors. For the latter, obtain the key from the page
-      key_selector = key_value_selector.key_selector
-      if isinstance(key_selector, FieldSelector): #key_selector is a FieldSelector, use it to get the key from the response
-        sel = Selector(response)
-        if key_selector.type == FieldSelector.XPATH:
-          key = sel.xpath(key_selector).extract()
-        elif key_selector.type == FieldSelector.CSS:
-          key = sel.css(key_selector).extract()
-        if key: key = key[0]
-        else: key = "Invalid_Key_Selector" #this may pack in all values with invalid keys with this key.
-      else: 
-        key = key_selector
+    for selector_action in selectorsActions:
+      if isinstance(selector_action, KeyValueSelector):
+        # keys can be either strings or selectors. For the latter, obtain the key from the page
+        key_selector = selector_action.key_selector
+        if isinstance(key_selector, FieldSelector): #key_selector is a FieldSelector, use it to get the key from the response
+          sel = Selector(response)
+          if key_selector.type == FieldSelector.XPATH:
+            key = sel.xpath(key_selector).extract()
+          elif key_selector.type == FieldSelector.CSS:
+            key = sel.css(key_selector).extract()
+          if key: key = key[0]
+          else: key = "Invalid_Key_Selector" #this may pack in all values with invalid keys with this key.
+        else: 
+          key = key_selector
+        value_selector = selector_action.value_selector
       item_info["keys"].append(key)
-      value_selector = key_value_selector.value_selector
       item_info["values"].append(value_selector)
     return item_info
   
@@ -137,7 +138,7 @@ class CommonCrawler(object):
       elif table_selector.table_type == TableSelector.TABLE_VHEADERS:
         self._populateItemLoaderFromVTable(itemLoader, response, table_selector)
     if isinstance(self, selenium_mod.SeleniumCrawler):
-      self._loadPageActions(itemLoader)
+      self._performPageActions(itemLoader)
     itemLoader.add_value("_id", self._id)
     # add the post processing information
     itemLoader.add_value("_postinfo", ppInfo)

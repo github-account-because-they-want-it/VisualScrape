@@ -129,7 +129,7 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
       if action == UrlSelector.ACTION_VISIT:
         self.get_item_browser().get(item_page)
       elif action == UrlSelector.ACTION_CLICK:
-        item_browser = self.get_item_browser(item_page, action) # this opens the link automatically
+        browser = self.get_item_browser(item_page, action) # this opens the link automatically
       time.sleep(self.request_delay) # get the delay from settings and apply it
       item = self.next_item()
       

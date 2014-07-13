@@ -3,7 +3,8 @@ Created on Jul 5, 2014
 @author: Mohammed Hamdy
 '''
 from visualscrape.lib.path import URL, Form, SpiderPath, FormElemInfo, MainPage
-from visualscrape.lib.selector import KeyValueSelector, ItemSelector, ImageSelector, UrlSelector, FieldSelector
+from visualscrape.lib.selector import (KeyValueSelector, ItemSelector, ImageSelector, UrlSelector, FieldSelector,
+  ItemPageClickAction, ItemPageScrollUntilAction)
 import re
 from django.conf import urls
 
@@ -21,11 +22,14 @@ class BrowserWatcher(object):
     self._browser.element_scrape_changed.connect(self.addField)
     self._browser.attribute_scrape_changed.connect(self.addAttribute)
     self._browser.item_page_selected.connect(self.addItemPages)
-    self._browser.pagination_selected.connect(self.addPagnation)
+    self._browser.similars_selected.connect(self.addPagnation)
+    self._browser.link_clicked.connect(self.addClickAction)
+    self._browser.scroll_performed.connect(self.addScrollAction)
     self._spider_path = SpiderPath()
-    self._key_value_selectors = []
+    self._selectors_actions = []
     self._item_pages_selector = None
     self._pagination_selector = None
+    self._page_actions = []
     self._track_nav = True
     
   def addUrl(self, url):
@@ -54,21 +58,21 @@ class BrowserWatcher(object):
   def addImageUrl(self, add, selector):
     if add:
       # check if there's already an image selector. Note: all the images are added to the same field. May differ in practice
-      for (i, kv_selector) in enumerate(self._key_value_selectors):
+      for (i, kv_selector) in enumerate(self._selectors_actions):
         if isinstance(kv_selector.value_selector, ImageSelector):
           css_selector = kv_selector.value_selector
           css_selector = self._unionCSS(css_selector, selector) # union the selectors together
-          self._key_value_selectors.pop(i)
+          self._selectors_actions.pop(i)
           break
       else:
         css_selector = selector
-      self._key_value_selectors.append(KeyValueSelector("Images", ImageSelector(selector + "::src", FieldSelector.CSS)))
+      self._selectors_actions.append(KeyValueSelector("Images", ImageSelector(selector + "::src", FieldSelector.CSS)))
     else:
       # remove that specific selector from all unioned selectors
       image_kv_selector = self._findSelectorByField("Images", remove=True)
       union = image_kv_selector.value_selector
       css_selector = self._removeSelectorFromUnion(selector, union)
-      self._key_value_selectors.append(KeyValueSelector("Images", ImageSelector(css_selector, FieldSelector.CSS)))
+      self._selectors_actions.append(KeyValueSelector("Images", ImageSelector(css_selector, FieldSelector.CSS)))
       
   def addField(self, add, fieldName, selector):
     selector = selector + "::text"
@@ -79,16 +83,16 @@ class BrowserWatcher(object):
         css = self._unionCSS(selector, value_sel)
       else:
         css = selector
-      self._key_value_selectors.append(KeyValueSelector(fieldName, FieldSelector(css, FieldSelector.CSS)))
+      self._selectors_actions.append(KeyValueSelector(fieldName, FieldSelector(css, FieldSelector.CSS)))
     else:
-      self._findSelectorByField(fieldName, remove=True)
+      pass # already removed
     
   def addAttribute(self, add, fieldName, selector, attrName):
     # assuming one-to-one relationship between attributes and fields
     self._findSelectorByField(fieldName, remove=True) # remove the field if it already exists
     if add:
       selector = ''.join([selector, "::", attrName])
-      self._key_value_selectors.append(KeyValueSelector(fieldName, FieldSelector(selector, FieldSelector.CSS)))
+      self._selectors_actions.append(KeyValueSelector(fieldName, FieldSelector(selector, FieldSelector.CSS)))
     else: pass # already done
   
   def addItemPages(self, selector):
@@ -98,6 +102,12 @@ class BrowserWatcher(object):
   def addPagination(self, selector):
     selector = selector + "::href"
     self._pagination_selector = UrlSelector(selector, FieldSelector.CSS, action=UrlSelector.ACTION_VISIT)
+    
+  def addClickAction(self, selector):
+    self._selectors_actions.append(ItemPageClickAction(selector, FieldSelector.CSS))
+    
+  def addScrollAction(self):
+    self._selectors_actions.append(ItemPageScrollUntilAction())
     
   def stopNavTracking(self):
     self._track_nav = False
@@ -113,18 +123,18 @@ class BrowserWatcher(object):
   
   def _findSelectorByClass(self, cls, remove=False):
     # cls like ImageSelector, UrlSelector...
-    for (i, kv_sel) in enumerate(self._key_value_selectors):
+    for (i, kv_sel) in enumerate(self._selectors_actions):
       value_selector = kv_sel.value_selector
       if isinstance(value_selector, cls):
         if remove:
-          self._key_value_selectors.pop(i)
+          self._selectors_actions.pop(i)
         return kv_sel
   
   def _findSelectorByField(self, fieldName, remove=False):
-    for (i, k_v_sel) in enumerate(self._key_value_selectors):
+    for (i, k_v_sel) in enumerate(self._selectors_actions):
       if k_v_sel.key_selector == fieldName:
         if remove:
-          self._key_value_selectors.pop(i)
+          self._selectors_actions.pop(i)
         return k_v_sel
       
   def getPath(self):

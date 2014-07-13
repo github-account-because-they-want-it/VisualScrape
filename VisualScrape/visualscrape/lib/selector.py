@@ -92,17 +92,21 @@ class ContentSelector(object):
     return u"<ContentSelector : selector={0}, restrict={1}>".format(self.selector, self.restrict_selector)
 
 class ItemSelector(object):
-  """This should be used to contain KeyValueSelector objects. 
-     along with any item post-processing information. ItemPageActions
-     also belong here.
+  """This should be used to contain KeyValueSelectors/ItemPageActions objects. 
+     along with any item post-processing information.
   """
-  def __init__(self, kvSelectors=[], postProcessingInfo=None, itemPageActions=None):
-    self.key_value_selectors = kvSelectors
+  def __init__(self, selectorsActions=[], postProcessingInfo=None):
+    self.selectors_actions = selectorsActions
     self.post_process_info = postProcessingInfo
-    self.item_page_actions = itemPageActions
-    
 
-class Merge(object):
+class PostProcessing(list):
+  """A list of post processing actions"""
+  pass
+
+class PostProcessingAction(object):
+  pass
+
+class Merge(PostProcessingAction):
   def __init__(self, fieldNames, outputName, mergeChars=''):
     self.field_names = fieldNames
     self.output_name = outputName
@@ -110,35 +114,53 @@ class Merge(object):
     
   def __unicode__(self):
     return "<Merge operation at 0x%0x>" % id(self)
-
-class PostProcessing(list):
-  """A list of post processing information objects"""
-  pass
   
 class ItemPageAction(object):
   """Action to perform after arriving at an item page, like clicking.
      This will be only supported for Selenium"""
-  ACTION_CLICK = 1
-  def __init__(self, selector, selectorType, action=ACTION_CLICK):
+  pass
+    
+class ItemPageClickAction(ItemPageAction):
+  def __init__(self, selector, selectorType):
     """
     selector -- A selector that will yield one or more elements, on which to perform the
                 action.
     selectorType -- A selector type from FieldSelector
     """
-    self.type = action
     self.selector = selector
     self.selector_type = selectorType
-    
-class ItemPageAfterAction(object):
+
+class ItemPageScrollAction(ItemPageAction):
   pass
 
-class ItemPageAfterActionSelect(ItemPageAfterAction):
-  
-  def __init__(self, selector, selectorType, outputField):
+class ItemPageScrollDistanceAction(ItemPageScrollAction):
+  """Represents an absolute scroll action on the page."""
+  def __init__(self, distance):
+    """
+    distance -- an integer amount of pixels to scroll
+    """
+    super(ItemPageScrollDistanceAction, self).__init__()
+    self.distance = distance
+    
+class ItemPageScrollToElementAction(ItemPageScrollAction):
+  """Represents a scroll to a specific element on the page"""
+  def __init__(self, selector, selectorType):
     self.selector = selector
     self.selector_type = selectorType
-    self.output_field = outputField
+      
+class ItemPageActionWait(ItemPageAction):
+  pass
+
+class ItemPageActionAbsoluteWait(ItemPageActionWait):
+  def __init__(self, waitTime):
+    # waitTime is in milliseconds
+    self.time = waitTime
+    
+class ItemPageScrollUntilAction(ItemPageActionWait):
+  """Represents a wait until new content becomes available"""
+  def __init__(self, timeOut=30000):
+    self.timeout = timeOut
     
 class ItemPageActions(list):
-  """A list of 2-tuples of (ItemPageAction, ItemPageAfterAction)"""
+  """A list of ItemPageAction objects"""
   pass

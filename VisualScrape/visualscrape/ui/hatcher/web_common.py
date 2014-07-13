@@ -39,35 +39,39 @@ class FormDetectorPage(QWebPage):
   
 class FieldInfo(object):
   """Important for keeping track of selected elemnts on the page and their properties"""
-  def __init__(self, fieldName, webElement, similarsSelected=False, colourClass=ColourClasses.CLASS_TEXT_ATTRIBUTE,
+  def __init__(self, fieldName, webElements=[], colourClass=ColourClasses.CLASS_TEXT_ATTRIBUTE,
                associatedAction=ActionTypes.ACTION_SCRAPE_TEXT):
+    # webElements are usually LocatorWebElements
     self.field_name = fieldName
-    self.web_element = webElement
-    self.pagination_selected = similarsSelected
+    self.web_elements = webElements
     self.colour = ColourClasses.colorByClass(colourClass)
     self.action_type = associatedAction
-    
-  def setSimilarsSelected(self, state=True):
-    self.pagination_selected = state
     
   def setActionType(self, actionType=ActionTypes.ACTION_SCRAPE_TEXT):
     self.action_type = actionType
     
   def __eq__(self, other):
     return self.field_name == other.field_name and \
-           self.web_element == other.web_element  and \
-           self.pagination_selected == other.pagination_selected
+           self.web_elements == other.web_elemens
   
   def __str__(self):
     return "<FieldInfo : <field name : {}>".format(self.field_name)
   
+class TableInfo(object):
+  def __init__(self, webElement, index):
+    self.web_element = webElement
+    self.index = index
+    self.color = ColourClasses.colorByClass(ColourClasses.CLASS_TABLES)
+    self.action_type = ActionTypes.ACTION_SCRAPE_TABLE
+    
 class ColourClasses(object):
   """Note the American usage"""
   CLASS_TEXT_ATTRIBUTE = 1
   CLASS_IMAGE = 2
   CLASS_ITEM_PAGE = 3
   CLASS_PAGINATION = 4
-  CLASS_EXTRA_SIMILARS = 5 # these take similar shades of the same color
+  CLASS_TABLES = 5
+  CLASS_EXTRA_SIMILARS = 6 # these take similar shades of the same color
   
   _extra_shades = deque([QColor(227,12,252), QColor(192,3,214), QColor(146,2,162)]) # you may extend that
   
@@ -81,6 +85,8 @@ class ColourClasses(object):
       return Qt.blue
     elif colorClass == cls.CLASS_PAGINATION:
       return Qt.darkBlue
+    elif colorClass == cls.CLASS_TABLES:
+      return QColor(255, 128, 0)
     elif colorClass == cls.CLASS_EXTRA_SIMILARS:
       shade = cls._extra_shades[0]
       cls._extra_shades.rotate()
