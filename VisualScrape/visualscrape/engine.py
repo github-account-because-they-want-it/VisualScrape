@@ -36,7 +36,7 @@ class CrawlEngine(object):
       managers_to_spinfo_map[spider_manager].append(sp_info)
     
     for manager, sp_infos in managers_to_spinfo_map.items():
-      manager_inst = manager(sp_infos)
+      manager_inst = manager.getInstance(sp_infos)
       self.managers.append(manager_inst)
       manager_inst.start_all()
     

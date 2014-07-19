@@ -10,7 +10,7 @@ from scrapy import signals
 from threading import Thread
 import urlparse, time
 from visualscrape.lib.path import URL, Form
-from visualscrape.lib.commonspider.base import CommonCrawler
+from visualscrape.lib.commonspider.base import CommonCrawler, BaseManager
 from visualscrape.config import settings
 from visualscrape.lib.item import InterestItem, FaviconItem
 from visualscrape.lib.selector import FieldSelector
@@ -18,6 +18,7 @@ from visualscrape.lib.signal import SpiderStarted, SpiderClosed
 from visualscrape.lib.event_handler import EventConfigurator
 from visualscrape.lib.data import SpiderConfigManager
 from scrapy.exceptions import CloseSpider
+from visualscrape.engine import SpiderInfo
 
 class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
   """
@@ -75,6 +76,7 @@ class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
       time.sleep(self._sleep_timeout)
       if self._stopped: break
     if self._stopped: raise CloseSpider()
+    self._visited_urls_before_shutdown.add(response.url)
     item_selector = self._spider_path[-1].item_selector
     selectors_actions = item_selector.selectors_actions
     item_info = self.get_item_info(selectors_actions, response)
@@ -115,14 +117,32 @@ class ScrapyCrawler(CrawlSpider, CommonCrawler, EventConfigurator):
         links = sel.xpath(selector).extract()
       # canonicalize ...
       links = [URL(link).canonicalize(response.url) for link in links]
-      if self._resumed:
-        links = [link for link in links if link not in self._visited_urls_before_shutdown]
+      links = [link for link in links if link not in self._visited_urls_before_shutdown]
     return links  
   
   @staticmethod      
   def get_manager():
     return ScrapyManager
-
+  
+class ScrapyJSBitch(ScrapyCrawler):
+  """A subclass that collects for only some items to test a site's JS requirements"""
+  
+  def __init__(self, watcher, spiderInfo, spiderID, itemCount=20, name="ScrapyCrawler", **kwargs):
+    """The watcher is sent each item collected"""
+    super(ScrapyJSBitch, self).__init__(spiderInfo, spiderID, name, **kwargs)
+    self._item_count = itemCount
+    self._scraped_count = 0
+    self._item_watcher = watcher
+    self.crawler().signals.connect(self._item_watcher.spider_done, signal=signals.spider_closed)
+    
+  def parse_items(self, response):
+    item = super(ScrapyJSBitch, self).parse_items(response)
+    self._item_watcher.take_item(item)
+    self._scraped_count += 1
+    if self._scraped_count == self._item_count:
+      raise CloseSpider()
+    else:
+      yield item
 # ------------------------------------------------------------------------- #
 #two modules brought together to solve a circular import
 
@@ -133,7 +153,7 @@ from scrapy import log
 from scrapy.utils.project import get_project_settings
 
 
-class ScrapyManager(object):
+class ScrapyManager(BaseManager):
   """Takes the spider information and handles launching and 
      termination of the spider(s)"""
   def __init__(self, spidersInfo=[]):
@@ -154,14 +174,15 @@ class ScrapyManager(object):
       spider = self._createSpider(spid, sp_info)
       self.config_spider(spid, spider)
     reactor.run()
-    
-  def resume_all(self):
-    """This method doesn't assume all spider infos are available, and it
-       runs them from configuration instead"""
-    for spider_crawler in self._ids_to_crawlers_map.values():
-      crawler = spider_crawler["crawler"]
-      crawler.start()
-    reactor.run()  
+  
+  def _createSpider(self, spid, spInfo=None):
+    # None for spInfo means a resume
+    spider = ScrapyCrawler(spInfo, spid)
+    return spider
+  
+  def _createJSSpider(self, spid, spInfo, watcher, count):
+    spider = ScrapyJSBitch(watcher, spInfo, spid, count)
+    return spider
   
   def config_spider(self, spid, spider):
     """The boring startup routine"""
@@ -173,6 +194,14 @@ class ScrapyManager(object):
     crawler.configure()
     crawler.crawl(spider)
     crawler.start()  
+    
+  def resume_all(self):
+    """This method doesn't assume all spider infos are available, and it
+       runs them from configuration instead"""
+    for spider_crawler in self._ids_to_crawlers_map.values():
+      crawler = spider_crawler["crawler"]
+      crawler.start()
+    reactor.run()  
   
   def stop_spider(self, spiderID, keepState=True):
     if spiderID in self._ids_to_crawlers_map: # the _id may not belong to a scrapy spider, so check it 
@@ -215,21 +244,29 @@ class ScrapyManager(object):
       spider_to_pause.pause()
       crawler_to_stop = info_to_pause["crawler"]
       crawler_to_stop.stop()
-      
-  def resume_spider(self, spiderName):
+  
+  @classmethod    
+  def resume_spider(cls, spiderName):
     """resume a spider from disk"""
     if SpiderConfigManager.is_scrapy_spider(spiderName):
       # stop all the current spiders and add this one to the mix
-      for spider_id in self._ids_to_crawlers_map:
-        self.stop_spider(spider_id, keepState=True)
-      next_id = max(self._ids_to_crawlers_map.keys()) + 1
-      self.config_spider(next_id, self._createSpider(next_id, None))
-      self.resume_all()
+      manager = cls.getInstance()
+      for spider_id in manager._ids_to_crawlers_map:
+        manager.stop_spider(spider_id, keepState=True)
+      if len(manager._ids_to_crawlers_map):
+        next_id = max(manager._ids_to_crawlers_map.keys()) + 1
+      else:
+        next_id = 1
+      manager.config_spider(next_id, manager._createSpider(next_id, None))
+      manager.resume_all()
     
   def spider_belongs(self, spiderID):
     return spiderID in self._ids_to_crawlers_map
   
-  def _createSpider(self, spid, spInfo=None):
-    # None for spInfo means a resume
-    spider = ScrapyCrawler(spInfo, spid)
-    return spider
+  @classmethod
+  def run_jstest(cls, spiderPath, itemWatcher, itemCount=20):
+    sp_info = SpiderInfo(spiderPath)
+    manager = cls([sp_info])
+    spider = manager._createJSSpider(0, sp_info, itemWatcher, itemCount)
+    manager.config_spider(0, spider)
+    manager.start_all()

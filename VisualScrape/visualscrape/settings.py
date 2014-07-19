@@ -4,7 +4,7 @@ Created on May 26, 2014
 '''
 """Warning: setting names should not begin with underscores, since these are used internally"""
 
-from visualscrape.lib.types import SpiderTypes as _spidertypes
+from visualscrape.lib.types import SpiderTypes
 
 BOT_NAME = 'ScrapyCrawler'
 
@@ -21,9 +21,9 @@ ITEM_PIPELINES = {"visualscrape.lib.scrapylib.pipeline.ItemPostProcessor": 1,
                   #"visualscrape.pipeline.CorrectMotoFieldNamesPipeline":102}
 
 IMAGES_STORE = "D:/scraped_images" #relative to the project directory?
-_CONFIG_PATH = "D:/scraped_images/config" # this is a path used for spider configuration, like current progress
-SCRAPER_CLASSES = {"visualscrape.lib.scrapylib.ScrapyCrawler" : _spidertypes.TYPE_SCRAPY,
-                   "visualscrape.lib.seleniumlib.selenium_crawl.SeleniumCrawler" : _spidertypes.TYPE_SELENIUM}
+CONFIG_PATH = "D:/scraped_images/config" # this is a path used for spider configuration, like current progress
+SCRAPER_CLASSES = {"visualscrape.lib.scrapylib.ScrapyCrawler" : SpiderTypes.TYPE_SCRAPY,
+                   "visualscrape.lib.seleniumlib.selenium_crawl.SeleniumCrawler" : SpiderTypes.TYPE_SELENIUM}
 
 ITEM_LOADER = "visualscrape.lib.scrapylib.itemloader.DefaultItemLoader"
 
@@ -39,25 +39,25 @@ SITE_PARAMS = {"http://www.machinerytrader.com/":{"REQUEST_DELAY":3,
                                                   "COOKIES_ENABLED": True,
                                                   # currently, this setting is only supported on selenium, but it might be the default on Scrapy, which seems logical
                                                   "IMAGES_ENABLED" : False, 
-                                                  "PREFERRED_SCRAPER": _spidertypes.TYPE_SELENIUM, # Uses indexes from SCRAPER_CLASSES
+                                                  "PREFERRED_SCRAPER": SpiderTypes.TYPE_SELENIUM, # Uses indexes from SCRAPER_CLASSES
                                                   "ITEM_LOADER": "visualscrape.itemloader.CarItemLoader",
                                                   },
-               "http://www.cycletrader.com":{"PREFERRED_SCRAPER":_spidertypes.TYPE_SELENIUM,
+               "http://www.cycletrader.com":{"PREFERRED_SCRAPER":SpiderTypes.TYPE_SELENIUM,
                                              "IMAGES_ENABLED" : False,
                                              "REQUEST_DELAY": 1,
                                              "ITEM_LOADER": "visualscrape.itemloader.CarItemLoader"}, # use the car item loader because it overrider takefirst on output
                
-               "http://www.ebay.com/":{"PREFERRED_SCRAPER": _spidertypes.TYPE_SELENIUM,
+               "http://www.ebay.com/":{"PREFERRED_SCRAPER": SpiderTypes.TYPE_SELENIUM,
                                        "IMAGES_ENABLED" : False,
                                        "REQUEST_DELAY": 1,
                                        "ITEM_LOADER": "visualscrape.itemloader.CarItemLoader"},
                
-               "http://www.cars.com":{"PREFERRED_SCRAPER":_spidertypes.TYPE_SELENIUM, # runs quite well with 1
+               "http://www.cars.com":{"PREFERRED_SCRAPER":SpiderTypes.TYPE_SELENIUM, # runs quite well with 1
                                       "IMAGES_ENABLED" : True,
                                       "REQUEST_DELAY": 1, 
                                       "ITEM_LOADER": "visualscrape.itemloader.CarItemLoader"},
                
-               "http://www.autotrader.com":{"PREFERRED_SCRAPER":_spidertypes.TYPE_SELENIUM, # requires click pagination
+               "http://www.autotrader.com":{"PREFERRED_SCRAPER":SpiderTypes.TYPE_SELENIUM, # requires click pagination
                                             "IMAGES_ENABLED" : True,
                                             "REQUEST_DELAY":1,
                                             "ITEM_LOADER": "visualscrape.itemloader.CarItemLoader"}}

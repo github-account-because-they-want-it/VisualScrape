@@ -26,7 +26,17 @@ class SeleniumDataHandlerMixin(object):
   def item_pages(self):
     main_page = self._spider_path[-1]
     item_page_selector = main_page.item_page_selector
-    return self._get_links_from_selector(item_page_selector, restrict=None, unique=False), item_page_selector.action
+    item_pages, action = (self._get_links_from_selector(item_page_selector, restrict=None, unique=False),
+                         item_page_selector.action)
+    unique_attr_str = UrlSelector.attrFromUniqueConst(item_page_selector.unique_attr)
+    # extract the unique attribute from links and return the links that are not in the start-up links (picked up from a resume)
+    if not unique_attr_str:
+      uniques = set([link.text for link in item_pages])
+    else:
+      uniques = set([link.get_attribute(unique_attr_str) for link in item_pages])
+    links_after_possible_resume = uniques.difference(self._visited_urls_before_shutdown)
+    self._visited_urls_before_shutdown.update(links_after_possible_resume)
+    return links_after_possible_resume, action
     
   def favicon_item(self):
     favicon_item = FaviconItem()

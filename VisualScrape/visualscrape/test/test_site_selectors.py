@@ -5,7 +5,7 @@ Created on Jun 21, 2014
 from visualscrape.lib.path import URL, MainPage
 from visualscrape.lib.selector import (ItemSelector, FieldSelector, KeyValueSelector, ImageSelector, 
                                        UrlSelector, PostProcessing, Merge, ItemPageAction, ItemPageActions,
-                                       ItemPageSelectAction, ContentSelector, TableSelector, ItemPageClickAction)
+                                       ContentSelector, TableSelector, ItemPageClickAction)
 
 #www.machinetrader.com
 machinery_selector = ItemSelector([

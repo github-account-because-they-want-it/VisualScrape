@@ -8,7 +8,8 @@ from PySide.QtCore import Qt, Signal, QUrl, QPoint
 from webelement import LocatorWebElement, TableLocator
 from menus import ImageRightclickMenu, ElementRightClickMenu
 from dialogs import ScrapeAttributeDialog, FieldNameDialog
-from ui_common import AnimatedClosableMessage, IconChangerWidget, CheckIconWidget, ScrapeTableDropDownLabel, ButtonWidget
+from visualscrape.ui.common import IconChangerWidget, CheckIconWidget, ButtonWidget
+from ui_common import AnimatedClosableMessage, ScrapeTableDropDownLabel
 from web_common import FieldInfo, FormDetectorPage, ColourClasses, TableInfo
 from menus import ActionTypes
 from visualscrape.lib.path import URL
@@ -46,7 +47,7 @@ class TrackerWebView(NotifierWebView):
     self.setPage(FormDetectorPage())
     self.urlChanged.connect(self.url_changed) # just a rename
     self.page().loadProgress.connect(self.progress_changed)
-    self.page().form_detected.connect(self.form_detected)
+    self.page().form_detected.connect(self.form_detected) # the page does the job on this one
     self._configureMenus()
     self._hover_rect = None
     self._hit_test_result = None

@@ -17,9 +17,10 @@ from visualscrape.lib.signal import *
 import sys, time, traceback
 from visualscrape.lib.selector import UrlSelector
 from visualscrape.lib.event_handler import EventConfigurator
-from visualscrape.lib.commonspider.base import CommonCrawler
+from visualscrape.lib.commonspider.base import CommonCrawler, BaseManager
 from visualscrape.lib.seleniumlib.handler import SeleniumDataHandlerMixin
 from visualscrape.lib.data import SpiderConfigManager
+from django.conf import urls
 
 class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin):
   LINK_TYPE_CLICK = 1
@@ -64,11 +65,6 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
       log.error("Exiting")
     finally:
       self._finishoff()
-  
-  def resume(self):
-    self._prepare_browsers()
-    self.resume()
-    self.start()
   
   def _finishoff(self):
     self.get_nav_browser().quit()
@@ -161,7 +157,8 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
       if self._link_types == self.LINK_TYPE_GET:
         return self._item_browser
       elif self._link_types == self.LINK_TYPE_CLICK:
-        if link is None: # this request comes from the data handler. So the link is already opened and on the front
+        # this request comes from the data handler (doesn't have direct access to the link). So the link is already opened and on the front
+        if link is None: 
           return self.nav_browser
         # close the current item browser and open the link in a new one 
         self.nav_browser.switch_to.window(self.nav_browser.window_handles[1])
@@ -197,9 +194,9 @@ class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin
     return SeleniumManager
   
 
-class SeleniumManager(object):
+class SeleniumManager(BaseManager):
   
-  def __init__(self, spidersInfo):
+  def __init__(self, spidersInfo=[]):
     self.spiders_info = spidersInfo
     self.crawler_id_to_config_map = {}
     for (spid, sp_info) in enumerate(spidersInfo):
@@ -247,10 +244,15 @@ class SeleniumManager(object):
   def spider_belongs(self, spiderID):
     return spiderID in self.crawler_id_to_config_map
   
-  def resume_spider(self, spiderName):
+  @classmethod
+  def resume_spider(cls, spiderName):
     # the spider is resumed by it's name because this is what's on disk
     if SpiderConfigManager.is_selenium_spider(spiderName):
-      spid = max(self.crawler_id_to_config_map.keys()) + 1 # the new spider id
-      self.config_spider(spid, sp_info=None)
-      spider_config = self.crawler_id_to_config_map[spid]
+      manager = cls.getInstance() 
+      if len(manager.crawler_id_to_config_map):
+        spid = max(manager.crawler_id_to_config_map.keys()) + 1 # the new spider id
+      else:
+        spid = 0
+      manager.config_spider(spid, sp_info=None)
+      spider_config = manager.crawler_id_to_config_map[spid]
       spider_config["thread"].start()

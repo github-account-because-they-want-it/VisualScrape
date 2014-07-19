@@ -3,7 +3,7 @@ Created on Jun 19, 2014
 @author: Mohammed Hamdy
 '''
 from PySide.QtGui import QAction
-import cPickle as pickle, os.path as pth
+import cPickle as pickle, os.path as pth, os
 import visualscrape.config as config
 from visualscrape.lib.types import SpiderTypes
 
@@ -89,8 +89,69 @@ class SpiderConfigManager(object):
   SPIDERNAME_ORDER = 1
   SPIDERTYPE_ORDER = 2
   VISITED_ORDER = 3
+  
+  @classmethod
+  def initializeSpiderState(cls, **kwargs):
+    """
+    Creates a configuration file for spiderName and writes the spiderType
+    to it
+    
+    Keyword arguments:
+      spiderName, spiderType
+    Raises:
+      ValueError when spiderName already exists
+    """
+    spider_name = kwargs.get("spiderName")
+    spider_type = kwargs.get("spiderType")
+    config_file = cls.get_config_file_for(spider_name)
+    if pth.exists(config_file):
+      raise ValueError("{} already exists".format(spider_name))
+    writable_config = open(config_file, "wb")
+    pickle.dump(ConfigObject(spider_type), writable_config)
+    writable_config.close()
+    
+  @classmethod
+  def saveSpiderState(cls, **kwargs):
+    """
+    This always operates on already existing configuration
+    Keyword arguments:
+      visitedUrls, spiderInfo
+    """
+    visited_urls = kwargs.get("visitedUrls", None)
+    spider_info = kwargs.get("spiderInfo", None)
+    spider_name = spider_info.spider_name
+    # first, read original ConfigObject
+    config_file = cls.get_config_file_for(spider_name)
+    readable_config = open(config_file, "rb")
+    config_object = pickle.load(readable_config)
+    readable_config.close()
+    # now update the config object with the new visited urls and spider info...
+    writable_config = open(config_file, "wb")
+    # this is the order of dumping. visited urls then spider info
+    new_config = ConfigObject(config_object.spider_type)
+    new_config.spider_info = spider_info
+    new_config.visited_urls = visited_urls
+    pickle.dump(config_object, writable_config)
+    writable_config.close()
+    
+  @classmethod
+  def readConfig(cls, spiderName):
+    """
+    Reads configuration for spider from disk and returns ConfigObject
+    Raises:
+      ValueError when no such spider exists
+    """
+    config_file = cls.get_config_file_for(spiderName)
+    if not pth.exists(config_file):
+      raise ValueError("No such spider \"{}\"".format(spiderName))
+    readable_config = open(config_file, "rb")
+    config_object = pickle.load(readable_config)
+    readable_config.close()
+    return config_object
+  
   @classmethod
   def updateSpiderInformation(cls, item):
+    # can be called after each scraped item
     pickled_info = cls.get_config_file_for(item.get("_spidername"))
     if pth.exists(pickled_info):
       f = open(pickled_info, "rb")
@@ -103,6 +164,18 @@ class SpiderConfigManager(object):
     pickled_out = open(pickled_info, "wb")
     cls._dump_stuff(pickled_out, item, scraped=current_visited)
     pickled_out.close()
+  
+  @classmethod
+  def listSpiderNames(cls):
+    # this can help a user find his/her spider
+    for cf in cls.spiderNames():
+      print(cf)
+  
+  @classmethod
+  def spiderNames(cls):
+    config_path = cls.get_config_path()
+    config_files = os.listdir(config_path)
+    return config_files  
     
   @classmethod
   def is_scrapy_spider(cls, spiderName):
@@ -116,11 +189,11 @@ class SpiderConfigManager(object):
   
   @staticmethod
   def get_config_path():
-    return config.settings._CONFIG_PATH
+    return config.settings.CONFIG_PATH
   
   @classmethod
   def get_config_file_for(cls, spiderName):
-    config_file = spiderName.lower() + ".bin"
+    config_file = spiderName + ".bin"
     return pth.join(cls.get_config_path(), config_file)
     
   @classmethod
@@ -135,8 +208,8 @@ class SpiderConfigManager(object):
     
   @classmethod
   def _get_spider_type(cls, configFile):
-    pickle.load(configFile)
-    return pickle.load(configFile)
+    config_object = pickle.load(configFile)
+    return config_object.spider_type
   
   @classmethod
   def _get_scraped_urls(cls, configFile):
@@ -151,4 +224,16 @@ class SpiderConfigManager(object):
     pickleFile.dump(item.get("_spidertype"))
     visited = kwargs.get("scraped")
     if visited: pickleFile.dump(visited)
+    
+
+class ConfigObject(object):
+  """
+  This contains the configuration for a spider. Meaning it's current crawling state
+  and the associated SpiderInfo object.
+  """
+  
+  def __init__(self, spiderType=SpiderTypes.TYPE_SCRAPY, spiderInfo=None, visitedUrls=[]):
+    self.spider_type = spiderType
+    self.spider_info = spiderInfo
+    self.visited_urls = visitedUrls
     

@@ -154,4 +154,37 @@ The scroll disance may not be all that reliable. say that the browser that the s
 happened at had a different resolution than the one that actually performs it.
 So I think the best bet is to track the scrolls which lead to new content
 generation.
+Ok. So you seem to need some icons to move forward. What icons?.
+1- Record Scrolling
+2- Record Clicking
+3- Click Action
+4- Scroll Action
+Before you go forward and create icons for the action table, are you sure about
+it's layout?. Yeppe. It'll have 2 columns: Step and Target.
+Step could be a field select or action.
+Action can now be a click or a scroll.
+A field selection should have it's target as it's selector. CSS Selector.
+It seems that in the end it'll be a single table, where every thing will be recorded.
+The item page selectors. the pagination selectors and the selectors that the user select
+on the item page. Also the actions. Each with a different icon. That's it. Maybe also the path
+should be recorded in the table. Yeah. Right.
+What now?. Just create the table.
+And now, to site config. Should I continue to write it in the settings file or somewhere else?
+I think I should. No reason to write them somewhere else.
+Ok. What if for some reason, the file gets deleted. What will you do.
+There should be some safe defaults or something like that.
+Ok. What code do I need now?.
+If the hatcher changes the settings file, then the launcher should be notified of the change.
+I think now that I should replace SITE_PARAMS with PROJECT_PARAMS. It will be sorted by project
+names and the start urls will be moved inside.
+Maybe the engine too needs to be changed. Since all the configuration
+now will come from files. Maybe not.
+The path also should be saved somewhere.
+Each spider will need these info associated:
+1- It's name
+2- It's path
+3- If the spider got paused somewhere, it needs it's state saved. So the state should be
+kept track of.
+Currently, also the handler is dumped off with the spider info, I think I absolutely need
+it
 """

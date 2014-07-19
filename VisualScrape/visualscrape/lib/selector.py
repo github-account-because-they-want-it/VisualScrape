@@ -58,6 +58,14 @@ class UrlSelector(FieldSelector):
     self.action = action
     self.unique_attr = uniqueAttr
     
+  @classmethod  
+  def attrFromUniqueConst(cls, uniqueAttr):
+    """Return attribute name suitable with web_element.get_attribute() or empty
+       string for unique text"""
+    if uniqueAttr == cls.UNIQUE_HREF: return "href"
+    elif uniqueAttr == cls.UNIQUE_ONCLICK: return "onclick"
+    elif uniqueAttr == cls.UNIQUE_TEXT: return ''
+  
   def __unicode__(self):
     return "<UrlSelector selector=%s, type=%s, action=%s>".format(
             super(FieldSelector, self).__unicode__(), 

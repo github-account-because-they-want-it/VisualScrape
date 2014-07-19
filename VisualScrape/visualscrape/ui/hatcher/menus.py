@@ -2,7 +2,7 @@
 Created on Jul 5, 2014
 @author: Mohammed Hamdy
 '''
-from PySide.QtGui import QMenu, QAction, QActionGroup
+from PySide.QtGui import QMenu, QAction, QActionGroup, QIcon, QToolBar
 
 class ImageActionGroup(QActionGroup):
   def __init__(self, parent=None):
@@ -81,6 +81,20 @@ class ScrapeTableAction(QAction):
     self.setText(self.tr("Scrape table"))
     self.setToolTip(self.tr("Attempt scraping the table's keys and values"))
     self.setCheckable(True)
+    
+class RecordClickAction(QAction):
+  def __init__(self, parent=None):
+    super(RecordClickAction, self).__init__(parent)
+    self.setToolTip("Record clicks in the browser (to be repeated by the crawler)")
+    self.setText(self.tr("Record clicks"))
+    self.setIcon(QIcon("record_click"))
+    
+class RecordScrollAction(QAction):
+  def __init__(self, parent=None):
+    super(RecordScrollAction, self).__init__(parent)
+    self.setToolTip(self.tr("Record browser scrolls that lead to new content"))
+    self.setText(self.tr("Record scrolls"))
+    self.setIcon(QIcon("record_scroll"))
     
 #------------------------ MENUS --------------------------------#
 class ActionMenu(QMenu):
@@ -182,3 +196,11 @@ class ScrapeTableMenu(QMenu):
     super(ScrapeTableMenu, self).__init__(parent)
     self.action_scrape_table = ScrapeTableAction()
     self.addAction(self.action_scrape_table)
+    
+class HatcherToolbar(QToolBar):
+  def __init__(self, parent=None):
+    super(HatcherToolbar, self).__init__(parent)
+    self.action_record_clicks = RecordClickAction(self)
+    self.addAction(self.action_record_clicks)
+    self.action_record_scrolls = RecordScrollAction(self)
+    self.addAction(self.action_record_scrolls)

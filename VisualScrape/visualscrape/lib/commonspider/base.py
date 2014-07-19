@@ -12,6 +12,8 @@ from visualscrape import settings as setting_module
 from visualscrape.lib.data import SpiderConfigManager
 from visualscrape.lib.types import SpiderTypes
 import re, cPickle as pickle, os
+from visualscrape.lib.scrapylib.scrapy_crawl import ScrapyManager
+from visualscrape.lib.seleniumlib.selenium_crawl import SeleniumManager
 
 class CommonCrawler(object):
   """Operations common to spiders to avoid duplication"""
@@ -33,7 +35,7 @@ class CommonCrawler(object):
     self._resumed = False
     self._stopped = False # flag for the spiders to check
     self._temp_paused = False
-    self._visited_urls_before_shutdown = []
+    self._visited_urls_before_shutdown = set()
   
   def temp_pause(self):
     self._temp_paused = True # this should be checked in spider code
@@ -48,18 +50,10 @@ class CommonCrawler(object):
     pickle.dump(self._spider_info, info_file)
     info_file.close()
     
-  def resume(self):
-    """Loads the latest progress from disk"""
-    self._resumed = True
-    # load the pipeline progress
-    config_file = open(SpiderConfigManager.get_config_file_for(self.name), "rb")
-    self._visited_urls_before_shutdown = pickle.load(config_file)
-    config_file.close()
-    # load the spider info
-    info_file = open(SpiderConfigManager.get_info_file_for(self.name), "rb")
-    spider_info = pickle.load(info_file)
-    self._spider_info = spider_info
-    info_file.close()
+  @staticmethod
+  def resume(spiderName):
+    SeleniumManager.resume_spider(spiderName)
+    ScrapyManager.resume_spider(spiderName)
     
   def stop(self, keepState=True):
     if not keepState:
@@ -281,3 +275,38 @@ class CommonCrawler(object):
     else: # No site params for this site
       return load_object(switched[min(switched.keys())])
     
+class BaseManager(object):
+  """A special singleton in that it doesn't know the subclass
+    in advance.
+    Managers are singletons"""
+  
+  _instance = None
+  
+  @classmethod
+  def getInstance(cls, *args, **kwargs):
+    if not cls._instance:
+      cls._instance = cls(*args, **kwargs)
+    return cls._instance
+    
+  def start_all(self):
+    pass
+  
+  def stop_spider(self, spid, keepState):
+    pass
+  
+  def temp_pause_spider(self, spid):
+    pass
+  
+  def temp_resume_spider(self, spid):
+    pass
+  
+  @classmethod
+  def resume_spider(cls, spiderName):
+    """This is a class method because I may not have an instance at the
+       typical time this method will be called, which is before any crawling
+       has been started"""
+    pass
+  
+  def restart_spider(self, spid, keepState):
+    pass
+  

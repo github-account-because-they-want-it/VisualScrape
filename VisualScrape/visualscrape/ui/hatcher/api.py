@@ -29,7 +29,6 @@ class BrowserWatcher(object):
     self._selectors_actions = []
     self._item_pages_selector = None
     self._pagination_selector = None
-    self._page_actions = []
     self._track_nav = True
     
   def addUrl(self, url):
@@ -138,4 +137,6 @@ class BrowserWatcher(object):
         return k_v_sel
       
   def getPath(self):
+    main_page = MainPage(self._item_pages_selector, self._selectors_actions, self._pagination_selector)
+    self._spider_path.add_step(main_page)
     return self._spider_path

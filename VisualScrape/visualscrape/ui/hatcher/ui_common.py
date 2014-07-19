@@ -8,158 +8,8 @@ from PySide.QtGui import QWidget, QPainter, QPixmap, QPen, QColor,\
 from PySide.QtCore import Qt, QSize, Signal, QRect, QPropertyAnimation,\
   QEasingCurve, QPoint
 from collections import deque
-from visualscrape.ui.hatcher.menus import ScrapeTableMenu
+from visualscrape.ui.hatcher.menus import ScrapeTableMenu    
 
-class IconWidget(QWidget):
-  """A widget that is clickable, has a fixed size and draws
-     an icon which changes opacity on hover. Setting a tooltip is recommended"""
-  clicked = Signal()
-  def __init__(self, iconPath, hoverOpacity=1, normalOpacity=0.25, parent=None):
-    super(IconWidget, self).__init__(parent)
-    self.setMouseTracking(True)
-    self._icon = QPixmap(iconPath)
-    self.setFixedSize(QSize(self._icon.width(), self._icon.height()))
-    self._hover_opacity = hoverOpacity
-    self._normal_opacity = normalOpacity
-    self._mouse_over = False # this is correct because when an icon appears after another, it appears where the mouse is
-    self._enabled = True
-    
-  def paintEvent(self, pe):
-    painter = QPainter(self)
-    icon = QPixmap(self._icon)
-    icon = icon.scaled(self.size(), Qt.IgnoreAspectRatio)
-    if not self._mouse_over or not self._enabled:
-      painter.setOpacity(self._normal_opacity)
-    else:
-      painter.setOpacity(self._hover_opacity)
-    painter.drawPixmap(0, 0, icon)
-    
-  def mouseMoveEvent(self, mme):
-    if self._mouse_over: return
-    self._mouse_over = True
-    self.setCursor(Qt.CursorShape.PointingHandCursor)
-    self.repaint()
-    
-  def leaveEvent(self, le):
-    self._mouse_over = False
-    self.repaint()
-    
-  def mousePressEvent(self, mpe):
-    self.clicked.emit()
-    
-  def makeEnabled(self):
-    self._enabled = True
-    self.show()
-    
-  def makeDisabled(self):
-    self._enabled = False
-    self.hide()
-
-
-class IconChangerWidget(QWidget):
-  """Same as IconWidget but changes icon on hover and doesn't use the hand pointer"""
-  clicked = Signal()
-  def __init__(self, normalIcon, hoverIcon, resolution=(32, 32), parent=None):
-    
-    super(IconChangerWidget, self).__init__(parent)
-    self._normal_icon = normalIcon
-    self._hover_icon = hoverIcon
-    self._resolution = resolution
-    self._mouse_over = False
-    self.setFixedSize(QSize(resolution[0], resolution[1]))
-    self.setMouseTracking(True)
-    
-  def mouseMoveEvent(self, mme):
-    if not self._mouse_over:
-      self._mouse_over = True
-      self.repaint()
-    super(IconChangerWidget, self).mouseMoveEvent(mme)
-    
-  def leaveEvent(self, le):
-    self._mouse_over = False
-    self.repaint()
-    
-  def mousePressEvent(self, mpe):
-    self.clicked.emit()
-    
-  def paintEvent(self, pe):
-    if self._mouse_over:
-      icon = self._hover_icon
-    else:
-      icon = self._normal_icon
-    painter = QPainter(self)
-    pixmap = QPixmap(icon)
-    pixmap = pixmap.scaled(self.size(), Qt.IgnoreAspectRatio)
-    painter.drawPixmap(0, 0, pixmap)
-    
-class CheckIconWidget(QWidget):
-  """An icon widget that operates as a checkbox"""
-  NORMAL_OPACITY = .5
-  HOVER_OPACITY = .85
-  FIRST_ICON = 1000
-  SECOND_ICON = 2000
-  
-  checked = Signal(bool)
-  
-  def __init__(self, firstIcon, secondIcon, parent=None):
-    super(CheckIconWidget, self).__init__(parent)
-    self.setMouseTracking(True)
-    self._mouse_over = False
-    self._checked = False
-    self._first_icon = QPixmap(firstIcon)
-    self._second_icon = QPixmap(secondIcon)
-    w1, w2 = self._first_icon.width(), self._second_icon.width()
-    h1, h2 = self._first_icon.height(), self._second_icon.height()
-    max_w = w1 if w1 > w2 else w2
-    max_h = h1 if h1 > h2 else h2
-    # set the size to contain both images, but they should have the same size
-    self.setFixedSize(max_w, max_h)
-    
-  def mousePressEvent(self, mpe):
-    self._checked = not self._checked
-    self.checked.emit(self._checked)
-    self.repaint()
-    
-  def mouseMoveEvent(self, mme):
-    self._mouse_over = True
-    self.setCursor(Qt.CursorShape.PointingHandCursor)
-    self.repaint()
-    
-  def leaveEvent(self, le):
-    self._mouse_over = False
-    self.repaint()
-    
-  def paintEvent(self, pe):
-    painter = QPainter(self)
-    if self._checked:
-      pixmap = self._second_icon
-    else:
-      pixmap = self._first_icon
-      
-    if self._mouse_over:
-      painter.setOpacity(self.HOVER_OPACITY)
-    else:
-      painter.setOpacity(self.NORMAL_OPACITY)  
-    painter.drawPixmap(0, 0, pixmap)
-
-class ButtonWidget(IconWidget):
-  """A widget the changes it's icon when pressed down"""
-  
-  def __init__(self, normalIcon, clickIcon, parent=None):
-    super(ButtonWidget, self).__init__(normalIcon, parent)
-    self._icons = deque([QPixmap(normalIcon), QPixmap(clickIcon)])
-    
-  def mousePressEvent(self, mpe):
-    super(ButtonWidget, self).mousePressEvent(mpe)
-    self._icons.rotate()
-    self._icon = self._icons[0]
-    self.update()
-    
-  def mouseReleaseEvent(self, mre):
-    self._icons.rotate()
-    self._icon = self._icons[0]
-    self.update()
-    
 class MessageWidget(QWidget):
   DEFAULT_MESSAGE_STRING = ''
   DEFAULT_OPACITY = 0.60
@@ -287,32 +137,8 @@ class SingleEditCombobox(QComboBox):
     self._items.pop(0)
     self._items.insert(0, text)
     self.combo_output_field.setModel(QStringListModel(self._items))
-class ChangeIconOnClickWidget(QWidget):
-  """A widget that changes the icon on click and waits for a restore
-     event to revert it back"""
-     
-  restored = Signal()
-  
-  def __init__(self, icon, clickIcon, resolution=(16, 16), parent=None):
-    super(ChangeIconOnClickWidget, self).__init__(parent)
-    self._icons = deque([QPixmap(icon), QPixmap(clickIcon)])
-    self.setFixedSize(QSize(resolution[0], resolution[1]))
-    self.restored.connect(self._restoreIcon)
     
-  def mousePressEvent(self, mpe):
-    self._icons.rotate()
-    self.update()
-    
-  def paintEvent(self, pe):
-    painter = QPainter(self)
-    pixmap = self._icons[0]
-    pixmap = pixmap.scaled(self.size(), Qt.IgnoreAspectRatio)
-    painter.drawPixmap(0, 0, pixmap)
-    
-  def _restoreIcon(self):
-    self._icons.rotate()
-    self.update()
-    
+
 class HideNotifierMenu(QMenu):
   """A menu with a hide signal so that my arrow could flip itself back when the menu is gone"""
   hidden = Signal()
@@ -430,7 +256,7 @@ class LoadingWidget(QWidget):
   finished = Signal(str)
   animation_finished = Signal()
   
-  def __init__(self, loadIcon, primaryMessage="Please, Wait", message='', parent=None):
+  def __init__(self, loadIcon="loading_bar", primaryMessage="Please, Wait", message='', parent=None):
     super(LoadingWidget, self).__init__(parent)
     self.finished.connect(self._updateUI)
     self.setStyleSheet("""
