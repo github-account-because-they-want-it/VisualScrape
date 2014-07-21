@@ -55,6 +55,9 @@ class RecordTableModel(QAbstractTableModel):
           return self.tr("Value")
       else:
         return section
+      
+  def flags(self, index):
+    return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
   
   def _handleUrlChanged(self, url):
     self.beginInsertRows(QModelIndex(), len(self._data), len(self._data))

@@ -16,4 +16,9 @@
   <file alias="selection">icons/selection.png</file>
   <file alias="image_download">icons/image_download.png</file>
   <file alias="table_add">icons/table_add.png</file>
+  <!-- the following from iconfinder.com devine-icons-part-2 -->
+  <file alias="run">icons/play.png</file>
+  <file alias="resume">icons/resume.png</file>
+  <file alias="delete">icons/trash.png</file>
+  <file alias="resume_disabled">icons.resume_disabled.png</file>
 </RCC>
