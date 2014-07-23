@@ -2,14 +2,16 @@
 Created on Jul 20, 2014
 @author: Mohammed Hamdy
 '''
-from PySide.QtGui import QGridLayout, QToolButton, QLabel, QIcon
-from PySide.QtCore import QSize
+from PySide.QtGui import QGridLayout, QToolButton, QLabel, QIcon, QApplication, QDrag
+from PySide.QtCore import QSize, Qt, QMimeData
 from style import *
 
 class SpiderToolButton(QToolButton):
-  """A tool button that arranges the spider name and functionality in a grid"""
+  """A tool button that arranges the spider name and functionality in a grid
+     and loads a drag with the spider name"""
   def __init__(self, spiderName, resumable=False,parent=None):
     super(SpiderToolButton, self).__init__(parent)
+    self._drag_start = None
     button_play = QToolButton()
     button_play.setIcon(QIcon("play.png"))
     self.triggered.connect(button_play.triggered) # clicking the outer button run the play functionality
@@ -30,6 +32,23 @@ class SpiderToolButton(QToolButton):
     layout.addWidget(button_play, 1, 3)
     layout.setContentsMargins(10, 8, 10, 8)
     self.setLayout(layout)
+    
+  def mousePressEvent(self, mpe):
+    if mpe.button() == Qt.LeftButton:
+      self._drag_start = mpe.pos()
+    super(SpiderToolButton, self).mousePressEvent(mpe)
+    
+  def mouseMoveEvent(self, mme):
+    if mme.button() == Qt.NoButton and self._drag_start: # for some reason, the left button is being mapped to NoButton
+      drag_distance = mme.pos() - self._drag_start
+      drag_distance = drag_distance.manhattanLength()
+      if drag_distance > QApplication.startDragDistance():
+        drag = QDrag(self)
+        mime_data = QMimeData()
+        mime_data.setText(self.label_spidername.text())
+        drag.setMimeData(mime_data)
+        drag.exec_(Qt.CopyAction | Qt.MoveAction)
+    super(SpiderToolButton, self).mouseMoveEvent(mme)
     
   def enterEvent(self, ee):
     self.label_spidername.setStyleSheet(style_label_spidername_hover)
