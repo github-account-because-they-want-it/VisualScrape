@@ -3,10 +3,11 @@ Created on Jun 5, 2014
 @author: Mohammed Hamdy
 '''
 from __future__ import print_function
-import sys
 from scrapy.exceptions import DropItem
-from visualscrape.config import settings
+from visualscrape.config.util import get_project_settings
 from scrapy.contrib.pipeline.images import ImagesPipeline
+
+settings = get_project_settings()
 
 class PipelineHandler(object):
   """Since it seems that Scrapy pipelining is tightly integrated with it, I'll
@@ -17,7 +18,7 @@ class PipelineHandler(object):
   def __init__(self, spider):
     """Initialize all the pipelines"""
     self.spider = spider
-    pipelines = settings.ITEM_PIPELINES
+    pipelines = settings.getdict("ITEM_PIPELINES")
     pipeline_classes = pipelines.load_components()
     self._pipeline_objects = [pl() for pl in pipeline_classes if not pl == ImagesPipeline]
     

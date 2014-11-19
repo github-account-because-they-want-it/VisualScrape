@@ -11,7 +11,6 @@ from threading import Thread
 import urlparse, time
 from visualscrape.lib.path import URL, Form
 from visualscrape.lib.commonspider.base import CommonCrawler, BaseManager
-from visualscrape.config import settings
 from visualscrape.lib.item import InterestItem, FaviconItem
 from visualscrape.lib.selector import FieldSelector
 from visualscrape.lib.signal import SpiderStarted, SpiderClosed
@@ -158,7 +157,6 @@ class ScrapyManager(BaseManager):
      termination of the spider(s)"""
   def __init__(self, spidersInfo=[]):
     # set the settings directory. Use scrapy settings manager
-    os.environ["SCRAPY_SETTINGS_MODULE"] = "visualscrape.settings"
     self.spiders_info = spidersInfo
     self.closed_spiders = 0
     self._ids_to_crawlers_map = {} # id : {spider, crawler}

@@ -3,10 +3,12 @@ Created on May 28, 2014
 @author: Mohammed Hamdy
 '''
 import os
-from visualscrape.config import settings
+from visualscrape.config.util import get_project_settings
 from visualscrape.lib.signal import ItemScraped
 from visualscrape.lib.selector import Merge
 from visualscrape.lib.data import SpiderConfigManager
+
+settings = get_project_settings()
 
 class FilterFieldsPipeline(object):
   """
@@ -33,7 +35,7 @@ class CanonicalizeImagePathPipeline(object):
     if images:
       for image in images:
         image_path = os.path.normpath(image.get("path"))
-        parent_folder = os.path.normpath(settings.IMAGES_STORE.value())
+        parent_folder = os.path.normpath(settings.get("IMAGES_STORE"))
         if not parent_folder in image_path:
           image_path = os.path.join(parent_folder, image_path)
           image["path"] = image_path

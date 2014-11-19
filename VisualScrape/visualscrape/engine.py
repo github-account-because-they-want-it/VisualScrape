@@ -2,7 +2,7 @@
 Created on May 25, 2014
 @author: Mohammed Hamdy
 '''
-from visualscrape.config import settings
+
 from visualscrape.lib.commonspider.base import CommonCrawler
 
 

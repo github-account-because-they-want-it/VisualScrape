@@ -20,7 +20,6 @@ from visualscrape.lib.event_handler import EventConfigurator
 from visualscrape.lib.commonspider.base import CommonCrawler, BaseManager
 from visualscrape.lib.seleniumlib.handler import SeleniumDataHandlerMixin
 from visualscrape.lib.data import SpiderConfigManager
-from django.conf import urls
 
 class SeleniumCrawler(EventConfigurator, CommonCrawler, SeleniumDataHandlerMixin):
   LINK_TYPE_CLICK = 1

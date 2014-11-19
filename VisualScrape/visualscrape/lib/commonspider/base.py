@@ -7,13 +7,15 @@ from scrapy.utils.misc import load_object
 from visualscrape.lib.selector import FieldSelector, ContentSelector, ImageSelector,\
   TableSelector, KeyValueSelector
 from visualscrape.config.reader import Setting
-from visualscrape.config import settings
+from visualscrape.config.util import get_project_settings, get_url_params
 from visualscrape import settings as setting_module
 from visualscrape.lib.data import SpiderConfigManager
 from visualscrape.lib.types import SpiderTypes
 import re, cPickle as pickle, os
 from visualscrape.lib.scrapylib.scrapy_crawl import ScrapyManager
 from visualscrape.lib.seleniumlib.selenium_crawl import SeleniumManager
+
+settings = get_project_settings()
 
 class CommonCrawler(object):
   """Operations common to spiders to avoid duplication"""
@@ -24,9 +26,10 @@ class CommonCrawler(object):
     else:
       self._spider_info = spiderInfo
       
-    self.favicon_required = settings.DOWNLOAD_FAVICON.value() 
+    self.favicon_required = settings.getbool("DOWNLOAD_FAVICON") 
     self.item_loader = CommonCrawler.get_item_loader_for(self._spider_info.spider_path[0])
-    self.request_delay = settings.SITE_PARAMS.by(spiderInfo.spider_path[0]).get("REQUEST_DELAY", 1)
+    spider_crawl_params = get_url_params(spiderInfo.spider_path[0])
+    self.request_delay = spider_crawl_params.get("REQUEST_DELAY", 1)
     self._spider_path = spiderInfo.spider_path
     self._id = spiderID
     self.name = spiderInfo.spider_name

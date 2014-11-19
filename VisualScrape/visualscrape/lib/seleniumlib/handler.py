@@ -13,7 +13,9 @@ from visualscrape.lib.pipeline_handler import PipelineHandler
 from visualscrape.lib.item import InterestItem, FaviconItem
 from visualscrape.lib.util import download_image
 from visualscrape.lib.path import URL
-from visualscrape.config import settings
+from visualscrape.config.util import get_project_settings
+
+settings = get_project_settings()
 
 class SeleniumDataHandlerMixin(object):
   """Takes the browser instances and the spider _spider_path. When called at the right times,
@@ -108,7 +110,7 @@ class SeleniumDataHandlerMixin(object):
   
   def _get_image_save_path(self):
     #read the save _spider_path from settings
-    save_folder = settings.IMAGES_STORE.value()
+    save_folder = settings.get("IMAGES_STORE")
     save_folder = os.path.join(save_folder, "selenium_images")
     return save_folder
   
