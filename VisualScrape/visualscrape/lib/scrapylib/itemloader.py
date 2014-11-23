@@ -6,7 +6,6 @@ Created on May 27, 2014
 from scrapy.contrib.loader import ItemLoader
 from scrapy.contrib.loader.processor import TakeFirst, MapCompose, Identity
 from lxml import etree
-import re
 from visualscrape.lib.path import URL
 
 def canonicalize(imageUrl, loader_context): #loader_context arg name must be an exact match

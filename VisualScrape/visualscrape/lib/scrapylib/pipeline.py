@@ -3,12 +3,10 @@ Created on May 28, 2014
 @author: Mohammed Hamdy
 '''
 import os
-from visualscrape.config.util import get_project_settings
 from visualscrape.lib.signal import ItemScraped
 from visualscrape.lib.selector import Merge
 from visualscrape.lib.data import SpiderConfigManager
-
-settings = get_project_settings()
+from visualscrape import settings
 
 class FilterFieldsPipeline(object):
   """

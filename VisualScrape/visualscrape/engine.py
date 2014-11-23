@@ -3,8 +3,7 @@ Created on May 25, 2014
 @author: Mohammed Hamdy
 '''
 
-from visualscrape.lib.commonspider.base import CommonCrawler
-
+from visualscrape.config.util import get_preferred_scraper_for_url
 
 class CrawlEngine(object):
   """This is where a client application interfaces with the API"""
@@ -30,7 +29,7 @@ class CrawlEngine(object):
     managers_to_spinfo_map = {}
     for sp_info in self.spiders_info:
       spider_start_url = sp_info.get_start_url()
-      scraper_cls = CommonCrawler.get_preferred_scraper_for(spider_start_url)
+      scraper_cls = get_preferred_scraper_for_url(spider_start_url)
       spider_manager = scraper_cls.get_manager()
       managers_to_spinfo_map.setdefault(spider_manager, [])
       managers_to_spinfo_map[spider_manager].append(sp_info)

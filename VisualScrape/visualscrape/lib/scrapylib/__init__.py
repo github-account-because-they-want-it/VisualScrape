@@ -1,1 +1,1 @@
-from visualscrape.lib.scrapylib.scrapy_crawl import ScrapyCrawler
+from visualscrape.lib.scrapylib.crawlers import ScrapyProductCrawler

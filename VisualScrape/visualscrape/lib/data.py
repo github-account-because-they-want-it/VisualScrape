@@ -189,7 +189,7 @@ class SpiderConfigManager(object):
   
   @staticmethod
   def get_config_path():
-    return config.settings.CONFIG_PATH
+    return config.conf.CONFIG_PATH
   
   @classmethod
   def get_config_file_for(cls, spiderName):

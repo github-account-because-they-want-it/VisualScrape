@@ -9,7 +9,7 @@ from ui_common import ProgressLineEdit, LoadingWidget
 from record_table import RecordTable
 from api import BrowserWatcher
 from jstest import ItemWatcher
-from visualscrape.lib.scrapylib.scrapy_crawl import ScrapyManager
+from visualscrape.lib.scrapylib.crawlers import ScrapyProductCrawlerManager
 import time
 
 class Hatcher(QWidget):
@@ -62,7 +62,7 @@ class BrowserContainer(QWidget):
     spider_path = self._browser_watcher.getPath()
     item_watcher = ItemWatcher()
     item_watcher.finished.connect(self._announceWatcherResults)
-    ScrapyManager.run_jstest(spider_path, item_watcher, itemCount=20)
+    ScrapyProductCrawlerManager.run_jstest(spider_path, item_watcher, itemCount=20)
     
   def _announceWatcherResults(self, useScrapy):
     if useScrapy:

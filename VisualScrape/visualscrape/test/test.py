@@ -13,7 +13,7 @@ from visualscrape.test.test_site_selectors import (nefsak_laptop_info, nefsak_ma
                                                   egyprices_main_page, egyprices_url, cars_url, cars_main_page,
                                                   autotrader_url, autotrader_main_page,
   nefsak_content_main_page)
-from visualscrape.test.test_handler import Handler
+from visualscrape.test.test_handler import PrintingHandler
 #from visualscrape.dbreceiver import MongoReceiver
 
 class Test(unittest.TestCase):
@@ -59,7 +59,7 @@ class Test(unittest.TestCase):
       path = SpiderPath()
       path.add_step(cars_url).add_step(cars_main_page)
       engine = CrawlEngine()
-      handler = Handler()
+      handler = PrintingHandler()
       engine.add_spider("AutoTraderSpider").set_path(path).register_handler(handler).start()
     
 if __name__ == "__main__":

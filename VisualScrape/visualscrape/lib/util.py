@@ -71,6 +71,9 @@ def save_table_to_csv(table, outfile):
   writer.writerow(fst_row)
   for row in rows: writer.writerow(row)
   f.close()
+  
+def sort_dict_by_values(dct):
+  return sorted(dct, key=lambda k : dct[k])
 
 if __name__ == "__main__":
   class T:

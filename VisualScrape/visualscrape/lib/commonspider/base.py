@@ -2,39 +2,34 @@
 Created on Jun 18, 2014
 @author: Mohammed Hamdy
 '''
-from scrapy.selector import Selector
-from scrapy.utils.misc import load_object
-from visualscrape.lib.selector import FieldSelector, ContentSelector, ImageSelector,\
-  TableSelector, KeyValueSelector
-from visualscrape.config.reader import Setting
-from visualscrape.config.util import get_project_settings, get_url_params
-from visualscrape import settings as setting_module
+
+import cPickle as pickle, os, sys
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+from scrapy.http import TextResponse
+from visualscrape import settings
+from visualscrape.config.util import get_url_params, get_item_loader_for
 from visualscrape.lib.data import SpiderConfigManager
-from visualscrape.lib.types import SpiderTypes
-import re, cPickle as pickle, os
-from visualscrape.lib.scrapylib.scrapy_crawl import ScrapyManager
-from visualscrape.lib.seleniumlib.selenium_crawl import SeleniumManager
+from visualscrape.lib.event_handler import EventConfigurator
+from visualscrape.lib.pipeline_handler import PipelineHandler
+from visualscrape.lib.signal import SpiderClosed
+from visualscrape.lib.seleniumlib import log
 
-settings = get_project_settings()
-
-class CommonCrawler(object):
-  """Operations common to spiders to avoid duplication"""
+class BaseCrawler(EventConfigurator):
+  """Operations and attributes common to spiders"""
   
-  def __init__(self, spiderInfo, spiderID, sleepTimeout=1, **kwargs):
-    if not spiderInfo:
-      self.resume()
-    else:
-      self._spider_info = spiderInfo
-      
+  def __init__(self, spiderPath=[], spiderName='', spiderID=-1, **kwargs):
+    EventConfigurator.__init__(self, kwargs.get("handler"))
     self.favicon_required = settings.getbool("DOWNLOAD_FAVICON") 
-    self.item_loader = CommonCrawler.get_item_loader_for(self._spider_info.spider_path[0])
-    spider_crawl_params = get_url_params(spiderInfo.spider_path[0])
-    self.request_delay = spider_crawl_params.get("REQUEST_DELAY", 1)
-    self._spider_path = spiderInfo.spider_path
+    self.item_loader = get_item_loader_for(spiderPath[0])
+    self.conf = get_url_params(spiderPath[0])
+    self.request_delay = self.conf.get("REQUEST_DELAY", 1)
+    self._spider_path = spiderPath
     self._id = spiderID
-    self.name = spiderInfo.spider_name
-    # load configuration data for the spider
-    self._sleep_timeout = sleepTimeout
+    self.name = spiderName
     self._resumed = False
     self._stopped = False # flag for the spiders to check
     self._temp_paused = False
@@ -55,261 +50,73 @@ class CommonCrawler(object):
     
   @staticmethod
   def resume(spiderName):
+    # you may want to enlist all your crawlers here
+    """
     SeleniumManager.resume_spider(spiderName)
-    ScrapyManager.resume_spider(spiderName)
+    ScrapyProductCrawlerManager.resume_spider(spiderName)
+    """
     
   def stop(self, keepState=True):
     if not keepState:
       # delete the configuration file for the spider
       os.remove(SpiderConfigManager.get_config_file_for(self.name))
     self._stopped = True
+
+class SeleniumBaseCrawler(BaseCrawler): 
+  """
+  Adds pipeline handling capabilities needed by selenium spiders
+  """ 
   
-  def get_item_info(self, selectorsActions, response):
-    """Do field key preprocessing if required and return key-selector map"""
-    item_info = {"keys":[], "values":[]}
-    for selector_action in selectorsActions:
-      if isinstance(selector_action, KeyValueSelector):
-        # keys can be either strings or selectors. For the latter, obtain the key from the page
-        key_selector = selector_action.key_selector
-        if isinstance(key_selector, FieldSelector): #key_selector is a FieldSelector, use it to get the key from the response
-          sel = Selector(response)
-          if key_selector.type == FieldSelector.XPATH:
-            key = sel.xpath(key_selector).extract()
-          elif key_selector.type == FieldSelector.CSS:
-            key = sel.css(key_selector).extract()
-          if key: key = key[0]
-          else: key = "Invalid_Key_Selector" #this may pack in all values with invalid keys with this key.
-        else: 
-          key = key_selector
-        value_selector = selector_action.value_selector
-      item_info["keys"].append(key)
-      item_info["values"].append(value_selector)
-    return item_info
-  
-  def fill_item_loader(self, itemLoader, itemInfo, response, ppInfo):
-    """Fill an item loader with data from itemInfo and response"""
-    from visualscrape.lib.scrapylib.scrapy_crawl import ScrapyCrawler
-    import visualscrape.lib.seleniumlib.selenium_crawl as selenium_mod
-    table_selectors = [] # pack them because their processing differs from the rest
-    for (key, value_selector) in zip(itemInfo["keys"], itemInfo["values"]):
-      if isinstance(value_selector, ContentSelector):
-        restricted = self._selectFrom(value_selector.restrict_selector, value_selector.restrict_selector.type, response)
-        if restricted: restrict_selector = restricted[0] # get the first tag that matches the restrict selector
-        else: 
-          from visualscrape.lib.scrapylib.log import log
-          log.warn("Content restrict selector returned empty: %s" % value_selector.restrict_selector)
-          continue
-        # select all subelements of restricted and check them against the regex
-        subs = restrict_selector.xpath("//*")
-        if value_selector.selector.type == FieldSelector.WORDLIST:
-          words = value_selector.selector.split(", ")
-          regexp = re.compile('|'.join(words), re.IGNORECASE)
-        elif value_selector.selector.type == FieldSelector.REGEX:
-          regexp = re.compile(value_selector.selector, re.IGNORECASE)
-        for sub_element in subs:
-          subtext = sub_element.css("::text").extract()
-          if subtext: subtext = subtext[0] # the text of the parent not the children
-          else: continue
-          match = regexp.match(subtext)
-          if match:
-            value = subtext
-            break
-        else: value = '' # no value found for the selector. empty text
-        itemLoader.add_value(key, value)
-      elif isinstance(value_selector, TableSelector):
-        table_selectors.append(value_selector)
-      elif isinstance(value_selector, FieldSelector):
-        if value_selector.type == FieldSelector.CSS:
-          if isinstance(value_selector, ImageSelector):
-            itemLoader.add_css("image_urls", value_selector)
-          else:
-            itemLoader.add_css(key, value_selector)
-        elif value_selector.type == FieldSelector.XPATH:
-          if isinstance(value_selector, ImageSelector):
-            itemLoader.add_xpath("image_urls", value_selector)
-          else:
-            itemLoader.add_xpath(key, value_selector)
-    for table_selector in table_selectors:
-      if table_selector.table_type == TableSelector.TABLE_HHEADERS:
-        self._populateItemLoaderFromHTable(itemLoader, response, table_selector)
-      elif table_selector.table_type == TableSelector.TABLE_VHEADERS:
-        self._populateItemLoaderFromVTable(itemLoader, response, table_selector)
-    if isinstance(self, selenium_mod.SeleniumCrawler):
-      self._performPageActions(itemLoader)
-    itemLoader.add_value("_id", self._id)
-    # add the post processing information
-    itemLoader.add_value("_postinfo", ppInfo)
-    spider_type = SpiderTypes.TYPE_SCRAPY if isinstance(self, ScrapyCrawler) else SpiderTypes.TYPE_SELENIUM
-    itemLoader.add_value("_spidertype", spider_type)
-    itemLoader.add_value("_spidername", self.name)
-    # the response url. intentional because for selenium there's no requests on responses. 
-    # This means if there was a redirection on the item url, the redirected-to url is the one saved
-    itemLoader.add_value("_scrapedurl", response.url) 
-    item = itemLoader.load_item()
-    return item
-  
-  def _selectFrom(self, selector, selectorType, response):
-    """Apply the selector to response by selectorType without extraction"""
-    sel = Selector(response)
-    if selectorType == FieldSelector.CSS:
-      elems = sel.css(selector)
-    elif selectorType == FieldSelector.XPATH:
-      elems = sel.xpath(selector)
-    return elems
-  
-  def _populateItemLoaderFromHTable(self, itemLoader, response, tableSelector):
-    table = self._selectFrom(tableSelector, tableSelector.type, response)
-    # scrape the the largest even numbers of keys/values
-    rows = table.css("tr")
-    for row in rows:
-      tds = row.css("td")
-      if len(tds) == 1: continue # this can be a title data
-      for tdi in range(0, len(tds), 2): # this shouldn't execute for td-less rows
-        key = self._findTextWithinElement(tds[tdi]) # note that text nodes may not be directly inside td. think <td><bold>...
-        key = self._filterKey(key) # only HTables are considered to be liable to have extra characters for me
-        if not key:
-          continue # skip non-valid keys
-        try:
-          value = self._findTextWithinElement(tds[tdi + 1])
-        except IndexError:
-          value = ''
-        itemLoader.item.fields[key] = {} # hack the item loader to allow a field not in the original item
-        itemLoader.add_value(key, value)
-  
-  def _populateItemLoaderFromVTable(self, itemLoader, response, tableSelector):
-    table = self._selectFrom(tableSelector, tableSelector.type, response)
-    # find a row with some th elements and take it as your keys
-    # TODO: this needs debugging. There is a problem when there's more that 1 active row span 
-    keys = []
-    rows = table.css("tr")
-    # first get the keys
-    for (i, row) in enumerate(rows):
-      headers = row.css("th")
-      if headers:
-        keys = [self._findTextWithinElement(header) for header in headers]
-        break
-    # search for values after where you found the keys
-    data_rows = rows[i+1:]
-    active_row_spans = [] # a list of 4-tuples of (rowspan, span_column, span_data, processed_rows)
-    values = [] # an array of arrays (rows)
-    for (row_i, data_row) in enumerate(data_rows):
-      values.append([])
-      tds = data_row.css("td")
-      for (coli, td) in enumerate(tds):
-        row_span = td.xpath("./@rowspan")
-        if row_span:
-          row_span = int(row_span.extract()[0])
-          active_row_spans.append((row_span, coli, self._findTextWithinElement(td), 0))
-        # row spans in place. Now check if (any) current td is inside a span
-        for (spi, (row_span, span_column, span_data, processed_rows)) in enumerate(active_row_spans):
-          if coli == span_column: # i.e, inside an active span
-            values[row_i].append(span_data)
-            if processed_rows != 0: # do not add the row span twice in the row you found it
-              values[row_i].append(self._findTextWithinElement(td))
-            processed_rows += 1
-            if processed_rows == row_span:
-              active_row_spans.pop(spi)
-            else:
-              active_row_spans[spi] = (row_span, span_column, span_data, processed_rows)
-            break
-        else: # td not currently in a row span
-          values[row_i].append(self._findTextWithinElement(td))
-    for (key, value) in zip(keys, values):
-      itemLoader.item.fields[key] = {}
-      itemLoader.add_value(key, value)
-  
-  def _findTextWithinElement(self, selector):
-    """
-    Joins all the texts found within element with the space character
-    selector -- scrapy selector object
-    """
-    parent_text = self._getStrippedText(selector) # everybody has got text I think. so this shouldn't raise IndexError
-    if parent_text: return parent_text
-    subelements = selector.css('*')
-    texts_found = []
-    for element in subelements:
-      elem_text = self._getStrippedText(element)
-      if "CDATA" in elem_text: continue # that's a part of the document not intended to be visible
-      texts_found.append(elem_text)
-    return ' '.join(texts_found)
-  
-  def _getStrippedText(self, selector):
-    text = selector.css("::text").extract()
-    if text:
-      text = text[0].strip()
-      if text:
-        return text
-      else:
-        return ''
+  def __init__(self, spiderPath=[], spiderName='', spiderID=-1, **kwargs):
+    BaseCrawler.__init__(spiderPath, spiderName, spiderID, **kwargs)
+    self.pipeline_handler = PipelineHandler(self) # the pipelines need access to the spider
+    self._profile_settings = {}
+    # get browser profile-influencing options 
+    crawl_params = get_url_params(self._spider_path[0])
+    if crawl_params.get("COOKIES_ENABLED", True) is False:
+      self._profile_settings["network.cookie.cookieBehavior"] = 1
+    if crawl_params.get("IMAGES_ENABLED", True) is False:
+      self._profile_settings["permissions.default.image"] = 2 # could also be 1 with some older firefox versions
+    #try to run headless on linux
+    if sys.platform.startswith("linux"):
+      try:
+        from pyvirtualdisplay import Display
+        self._display = Display(visible=0, size=(800, 600)) 
+        self._display.start()
+      except ImportError: #linux but no pyvirtualdisplay
+        self._display = None
     else:
-      return ''
+      self._display = None
     
-  def _filterKey(self, keyText):
-    # removes non-character text from the end of key, like (:)
-    return re.sub("[^\w]$", '', keyText, flags=re.UNICODE)
-    
-  @staticmethod
-  def get_item_loader_for(startUrl):
-    """Used by spider managers to get item loaders for spiders, because it can be spider-specific"""
-    site_params_setting = Setting("SITE_PARAMS")
-    site_params = site_params_setting.by(startUrl)
-    if site_params: 
-      loader_cls = site_params.get("ITEM_LOADER", None)
-      if loader_cls: # specific item loader?
-        return load_object(loader_cls)
-      else: return load_object(setting_module.ITEM_LOADER) #default item loader
-    else: return load_object(setting_module.ITEM_LOADER) #default item loader
+  def create_browser(self):
+    # check conf for our start url
+    return webdriver.Firefox(self._create_profile())
+      
+  def _create_profile(self):
+    ff_profile = webdriver.FirefoxProfile()
+    [ff_profile.set_preference(key, value) for key, value in self._profile_settings.items()]
+    return ff_profile
   
-  @staticmethod  
-  def get_preferred_scraper_for(startUrl):
-    """Used by the engine to get the user-defined scraper for his site"""
-    scraper_classes = setting_module.SCRAPER_CLASSES
-    # switch keys and values, to be able to get the class by it's number
-    switched = {value:key for (key, value) in scraper_classes.items()}
-    #now get the index of the user-defined class, if at all
-    site_params_setting = Setting("SITE_PARAMS")
-    start_url_params = site_params_setting.by(startUrl)
-    if start_url_params:
-      scraper_index = start_url_params.get("PREFERRED_SCRAPER", None)
-      if scraper_index is None: # no user-defined field, return first scraper class
-        return load_object(switched[min(switched.keys())]) 
-      else:
-        return load_object(switched[scraper_index])
-    else: # No site params for this site
-      return load_object(switched[min(switched.keys())])
-    
-class BaseManager(object):
-  """A special singleton in that it doesn't know the subclass
-    in advance.
-    Managers are singletons"""
+  def response_from_browser(self, browser):
+    response = TextResponse(browser.current_url, body=browser.page_source, encoding="utf-8")
+    return response
   
-  _instance = None
+  def enable_JQuery_on(self, browser):
+    already_jquery =  browser.execute_script("return typeof jQuery == 'undefined'")
+    if not already_jquery:
+      browser.execute_script("""var jq = document.createElement('script');
+      jq.src = '//code.jquery.com/jquery-1.11.0.min.js';
+      document.getElementsByTagName('head')[0].appendChild(jq);
+      """)
   
-  @classmethod
-  def getInstance(cls, *args, **kwargs):
-    if not cls._instance:
-      cls._instance = cls(*args, **kwargs)
-    return cls._instance
-    
-  def start_all(self):
-    pass
+  def wait(self, browser, elem="body"):
+    try: 
+        WebDriverWait(browser, 30).until(EC.presence_of_element_located((By.TAG_NAME, elem)))
+    except TimeoutException:
+      log.error("Scraping timed out for: %s ... exiting" % browser.current_url)
+      self.finishoff()
+      sys.exit(1)
   
-  def stop_spider(self, spid, keepState):
-    pass
-  
-  def temp_pause_spider(self, spid):
-    pass
-  
-  def temp_resume_spider(self, spid):
-    pass
-  
-  @classmethod
-  def resume_spider(cls, spiderName):
-    """This is a class method because I may not have an instance at the
-       typical time this method will be called, which is before any crawling
-       has been started"""
-    pass
-  
-  def restart_spider(self, spid, keepState):
-    pass
-  
+  def finishoff(self):
+    self._display.stop() if self._display else None
+    self.event_handler.emit(SpiderClosed(self._id))

@@ -8,7 +8,7 @@ from visualscrape.lib.types import SpiderTypes
 
 BOT_NAME = 'ScrapyCrawler'
 
-SPIDER_MODULES = ['visualscrape.lib.scrapylib.scrapy_crawl']
+SPIDER_MODULES = ['visualscrape.lib.scrapylib.crawlers']
 NEWSPIDER_MODULE = 'NefsakLaptops.spiders'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
@@ -23,7 +23,7 @@ ITEM_PIPELINES = {"visualscrape.lib.scrapylib.pipeline.ItemPostProcessor": 1,
 IMAGES_STORE = "D:/scraped_images" #relative to the project directory?
 CONFIG_PATH = "D:/scraped_images/config" # this is a path used for spider configuration, like current progress
 SCRAPER_CLASSES = {"visualscrape.lib.scrapylib.ScrapyCrawler" : SpiderTypes.TYPE_SCRAPY,
-                   "visualscrape.lib.seleniumlib.selenium_crawl.SeleniumCrawler" : SpiderTypes.TYPE_SELENIUM}
+                   "visualscrape.lib.seleniumlib.crawlers.SeleniumCrawler" : SpiderTypes.TYPE_SELENIUM}
 
 ITEM_LOADER = "visualscrape.lib.scrapylib.itemloader.DefaultItemLoader"
 

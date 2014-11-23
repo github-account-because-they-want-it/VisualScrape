@@ -28,14 +28,14 @@ class EventConfigurator(object):
   """A class that configures event handlers for spiders. It should
      be inherited by them"""
     
-  def __init__(self, spiderInfo, *args, **kwargs):
-    self.event_handler = EventHandler(self)
-    self.event_handler.register_handler(spiderInfo.handler)
+  def __init__(self, handler, *args, **kwargs):
+    self.event_handler = EventHandler()
+    self.event_handler.register_handler(handler)
     
     
 class EventHandler(object):
   """Currently it supports only one handler per instance of EventHandler"""
-  def __init__(self, spiderInstance):
+  def __init__(self):
     self.signals_to_handlers_map = {}
     
   def register_handler(self, handler):

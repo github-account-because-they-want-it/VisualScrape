@@ -7,9 +7,9 @@ from visualscrape.lib.event_handler import IEventHandler
 from threading import Timer
 from blinker import signal
 
-class Handler(IEventHandler):
+class PrintingHandler(IEventHandler):
   spider_stop_signal = signal("spider-stop")
-  
+  # iwant to launch scrapy on the main thread
   def __init__(self):
     self.event_queue = None
     self.data_queue = None
