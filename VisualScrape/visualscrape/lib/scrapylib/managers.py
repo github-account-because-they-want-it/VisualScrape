@@ -3,12 +3,12 @@ Created on Nov 20, 2014
 @author: Mohammed Hamdy
 '''
 
-from threading import Thread
 from twisted.internet import reactor
 from scrapy.crawler import Crawler
 from scrapy import signals
 from scrapy import log
 from scrapy.utils.project import get_project_settings
+from visualscrape import settings
 from visualscrape.lib.data import SpiderConfigManager
 from visualscrape.engine import SpiderInfo
 from .crawlers import (ScrapyProductCrawler, ScrapyJSBitch, ScrapySinglePageCrawler, 
@@ -23,6 +23,8 @@ class ScrapyBaseManager(BaseManager):
   """Takes the spider information and handles launching and 
      termination of the spider(s)"""
   def __init__(self, spidersInfo=[]):
+    super(ScrapyBaseManager, self).__init__()
+    self.should_control_reactor = settings.getbool("SCRAPY_MANAGE_REACTOR", True)
     # set the settings directory. Use scrapy settings manager
     self.spiders_info = spidersInfo
     self.closed_spiders = 0
@@ -33,11 +35,11 @@ class ScrapyBaseManager(BaseManager):
     
   def run_spiders(self):
     """Currently, all the spiders are run within the same process"""
-    log.start(loglevel=log.DEBUG)
     for (spid, sp_info) in enumerate(self.spiders_info):
       spider = self.createSpider(spid, sp_info)
       self.config_spider(spid, spider)
-    reactor.run()
+    if self.should_control_reactor:
+      reactor.run()
   
   def config_spider(self, spid, spider):
     """The boring startup routine"""
@@ -53,7 +55,7 @@ class ScrapyBaseManager(BaseManager):
   def spider_closed(self, spider):
     self.closed_spiders += 1
     if spider.event_handler: spider.event_handler.emit(SpiderClosed(spider._id))
-    if self.closed_spiders == len(self.spiders_info):
+    if self.should_control_reactor and self.closed_spiders == len(self.spiders_info):
       reactor.stop()
 
   def spider_belongs(self, spiderID):

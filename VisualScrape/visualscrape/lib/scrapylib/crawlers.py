@@ -48,8 +48,7 @@ class ScrapyPageListCrawler(BaseCrawler, CrawlSpider):
                spiderName="ScrapyPageListCrawler", filterPredicate=None, 
                **kwargs):
     # get a url from the generator for BaseCrawler to be able to get URL_PARAMS
-    ug = urlGenerator()
-    BaseCrawler.__init__(self, [next(ug)], spiderName, spiderID, **kwargs)
+    BaseCrawler.__init__(self, ["dummy-unused"], spiderName, spiderID, **kwargs)
     CrawlSpider.__init__(self)
     self.start_urls  = urlGenerator()
     self.item_extractor = FilteringItemExtractor(itemSelector, self.item_loader, 
