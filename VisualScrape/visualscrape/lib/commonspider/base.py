@@ -26,14 +26,10 @@ class BaseCrawler(EventConfigurator):
     self.favicon_required = settings.getbool("DOWNLOAD_FAVICON") 
     self.item_loader = get_item_loader_for(spiderPath[0])
     self.conf = get_url_params(spiderPath[0])
-    self.request_delay = self.conf.get("REQUEST_DELAY", 1)
+    self.download_delay = self.conf.getint("DOWNLOAD_DELAY", 1)
     self._spider_path = spiderPath
     self._id = spiderID
     self.name = spiderName
-    self._resumed = False
-    self._stopped = False # flag for the spiders to check
-    self._temp_paused = False
-    self._visited_urls_before_shutdown = set()
   
   def temp_pause(self):
     self._temp_paused = True # this should be checked in spider code

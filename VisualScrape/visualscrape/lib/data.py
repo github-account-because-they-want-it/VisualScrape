@@ -2,7 +2,7 @@
 Created on Jun 19, 2014
 @author: Mohammed Hamdy
 '''
-from PySide.QtGui import QAction
+#from PySide.QtGui import QAction
 import cPickle as pickle, os.path as pth, os
 import visualscrape.config as config
 from visualscrape.lib.types import SpiderTypes
@@ -58,7 +58,8 @@ class DataStore(list):
       cls._instance = DataStore()
     return cls._instance
   
-class NamedAction(QAction):
+#class NamedAction(QAction):
+class NamedAction(object):
   """The actions that need to be shared between widgets should inherit
      from this class"""
   def __init__(self, text, parent=None, **kwargs):

@@ -173,7 +173,7 @@ class SeleniumProductCrawler(SeleniumBaseCrawler):
         self.get_item_browser().get(item_page)
       elif self.item_link_action == UrlSelector.ACTION_CLICK:
         browser = self.get_item_browser(item_page) # this opens the link automatically
-      time.sleep(self.request_delay) # get the delay from settings and apply it
+      time.sleep(self.download_delay) # get the delay from settings and apply it
       browser_reponse = self.response_from_browser(self._item_browser)
       item = self.item_extractor.extract_item(browser_reponse)
       self.pipeline_handler.run_pipeline(item)

@@ -60,7 +60,6 @@ class ScrapyPageListCrawler(BaseCrawler, CrawlSpider):
       self.favicon_required = False
       yield self.item_extractor.extract_favicon_item(response.url)
     yield self.item_extractor.extract_item(response)
-    time.sleep(self.request_delay)
     
   @staticmethod
   def get_manager():
@@ -112,7 +111,6 @@ class ScrapyProductCrawler(CrawlSpider, BaseCrawler):
       self.favicon_item = None
     item = self.item_extractor.extract_item(response)
     yield item
-    time.sleep(self.request_delay)
     
   def _take_step(self):
     step = self._spider_path.pop(0)
