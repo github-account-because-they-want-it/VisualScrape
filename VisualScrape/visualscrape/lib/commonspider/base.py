@@ -26,7 +26,7 @@ class BaseCrawler(EventConfigurator):
     self.favicon_required = settings.getbool("DOWNLOAD_FAVICON") 
     self.item_loader = get_item_loader_for(spiderPath[0])
     self.conf = get_url_params(spiderPath[0])
-    self.download_delay = self.conf.getint("DOWNLOAD_DELAY", 1)
+    self.download_delay = self.conf.get("DOWNLOAD_DELAY", 1)
     self._spider_path = spiderPath
     self._id = spiderID
     self.name = spiderName
