@@ -14,7 +14,7 @@ class PrintingHandler(IEventHandler):
     self.event_queue = None
     self.data_queue = None
     self.spider_stop_signal.connect(self.stop_timer)
-    self.timer = Timer(30, self.check_queues)
+    self.timer = Timer(15, self.check_queues)
     self.timer.start()
     
   def set_event_queue(self, queue):

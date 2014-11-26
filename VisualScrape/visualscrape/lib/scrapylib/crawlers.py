@@ -3,7 +3,6 @@ Created on May 26, 2014
 @author: Mohammed Hamdy
 '''
 
-import time
 from scrapy.contrib.spiders import CrawlSpider
 from scrapy.http import Request, FormRequest
 from scrapy import signals
@@ -21,8 +20,8 @@ class ScrapySinglePageCrawler(CrawlSpider, BaseCrawler):
   """
   
   def __init__(self, url, itemSelector, spiderID, spiderName="ScrapySinglePageCrawler", **kwargs):
+    BaseCrawler.__init__(self, [url], spiderName, spiderID, **kwargs)
     CrawlSpider.__init__(self)
-    BaseCrawler.__init__([url], spiderID, spiderName, **kwargs)
     self.item_extractor = ItemExtractor(itemSelector, self.item_loader,
                             SpiderTypes.TYPE_SCRAPY, spiderName, self._id)
     self.url = url
