@@ -18,6 +18,7 @@ from visualscrape.lib.signal import SpiderClosed
 from visualscrape.config.util import get_url_generator_for,\
   get_filter_predicate_for
 
+
 class ScrapyBaseManager(BaseManager):
   
   """Takes the spider information and handles launching and 

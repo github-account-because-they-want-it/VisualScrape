@@ -20,7 +20,8 @@ class ProxyMiddleware(object):
   
   def process_request(self, request, spider):
     request.meta['proxy'] = settings.get('HTTP_PROXY')
-
+    
+    
 class RetryChangeProxyMiddleware(RetryMiddleware):
   def _retry(self, request, reason, spider):
     log.msg('Changing proxy')

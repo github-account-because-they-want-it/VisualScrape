@@ -4,17 +4,12 @@ Created on Jun 5, 2014
 '''
 from Queue import Queue
 import abc
-from visualscrape.lib.pipeline_handler import PipelineHandler
 from visualscrape.lib.signal import *
 
 
 class IEventHandler(object):
   """An abstract interface to which all spider handlers should conform"""
   __metaclass__ = abc.ABCMeta
-  
-  @abc.abstractproperty
-  def spider_stop_signal(self):
-    raise NotImplemented
   
   @abc.abstractmethod
   def set_event_queue(self, queue):
