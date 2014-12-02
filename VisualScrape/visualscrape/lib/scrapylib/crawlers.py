@@ -43,11 +43,11 @@ class ScrapyPageListCrawler(BaseCrawler, CrawlSpider):
     just a Python generator
   """
   
-  def __init__(self, urlGenerator, itemSelector, spiderID, 
+  def __init__(self, baseURL, urlGenerator, itemSelector, spiderID, 
                spiderName="ScrapyPageListCrawler", filterPredicate=None, 
                **kwargs):
     # get a url from the generator for BaseCrawler to be able to get URL_PARAMS
-    BaseCrawler.__init__(self, ["dummy-unused"], spiderName, spiderID, **kwargs)
+    BaseCrawler.__init__(self, [baseURL], spiderName, spiderID, **kwargs)
     CrawlSpider.__init__(self)
     self.start_urls  = urlGenerator()
     self.item_extractor = FilteringItemExtractor(itemSelector, self.item_loader, 

@@ -162,7 +162,8 @@ class ScrapyPageListCrawlerManager(ScrapyBaseManager):
     item_selector = main_page.item_selector
     url_generator = get_url_generator_for(spInfo.spider_path[0])
     filter_predicate = get_filter_predicate_for(spInfo.spider_path[0])
-    spider = ScrapyPageListCrawler(url_generator, item_selector, spid,
+    base_url = spInfo.spider_path[0]
+    spider = ScrapyPageListCrawler(base_url, url_generator, item_selector, spid,
                   spInfo.spider_name, filterPredicate=filter_predicate, 
                   handler=spInfo.handler)
     return spider
