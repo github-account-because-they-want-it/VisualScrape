@@ -6,6 +6,7 @@ Created on Nov 26, 2014
 import random, time
 from scrapy.contrib.downloadermiddleware.retry import RetryMiddleware
 from scrapy import log
+from twisted.internet.error import ConnectionRefusedError
 from visualscrape import settings
 from visualscrape.tor import TorManager
 
@@ -23,10 +24,10 @@ class ProxyMiddleware(object):
     
     
 class RetryChangeProxyMiddleware(RetryMiddleware):
-  def _retry(self, request, reason, spider):
-    log.msg('Changing proxy')
-    TorManager.get_instance().refresh_circuit()
-    time.sleep(3)
-    log.msg('Proxy changed')
-    return RetryMiddleware._retry(self, request, reason, spider)
+  def _retry(self, request, exception, spider):
+    if isinstance(exception, ConnectionRefusedError):
+      TorManager.get_instance().refresh_circuit()
+      time.sleep(3)
+      log.msg('Connection refused and tor circuit refreshed')
+    return RetryMiddleware._retry(self, request, exception, spider)
   
