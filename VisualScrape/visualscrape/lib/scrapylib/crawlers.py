@@ -29,8 +29,8 @@ class ScrapySinglePageCrawler(CrawlSpider, BaseCrawler):
     
   def parse(self, response):
     if self.favicon_required:
-      yield self.item_extractor.extract_favicon_item(self.url)
-    yield self.item_extractor.extract_item(response)
+      return self.item_extractor.extract_favicon_item(self.url)
+    return  BaseCrawler.return_items(self, self.item_extractor.extract_items(response))
     
   @staticmethod
   def get_manager():
@@ -57,8 +57,8 @@ class ScrapyPageListCrawler(BaseCrawler, CrawlSpider):
   def parse(self, response):
     if self.favicon_required:
       self.favicon_required = False
-      yield self.item_extractor.extract_favicon_item(response.url)
-    yield self.item_extractor.extract_item(response)
+      return self.item_extractor.extract_favicon_item(self.url)
+    return  BaseCrawler.return_items(self, self.item_extractor.extract_items(response))
     
   @staticmethod
   def get_manager():
@@ -108,7 +108,7 @@ class ScrapyProductCrawler(CrawlSpider, BaseCrawler):
     if self.favicon_item:
       yield self.favicon_item
       self.favicon_item = None
-    item = self.item_extractor.extract_item(response)
+    item = self.item_extractor.extract_items(response)
     yield item
     
   def _take_step(self):

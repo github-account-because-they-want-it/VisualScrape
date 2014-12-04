@@ -30,6 +30,14 @@ class BaseCrawler(EventConfigurator):
     self._spider_path = spiderPath
     self._id = spiderID
     self.name = spiderName
+    
+  def return_items(self, items):
+    # return multiple items is compatibility with scrapy
+    if len(items) > 0:
+      for item in items:
+        yield item
+    else:
+      yield None
   
   def temp_pause(self):
     self._temp_paused = True # this should be checked in spider code

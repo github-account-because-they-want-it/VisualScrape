@@ -5,9 +5,10 @@ Created on Nov 21, 2014
 
 import re, urlparse
 from scrapy.selector import Selector
+from scrapy.utils.misc import arg_to_iter
 from visualscrape.lib.selector import (KeyValueSelector, FieldSelector, ContentSelector,
   TableSelector, ImageSelector)
-from visualscrape.lib.item import InterestItem, FaviconItem
+from visualscrape.lib.item import ItemFromFieldNames, FaviconItem
 from visualscrape.lib.commonspider.url_generator import ItemFilterMixin
 
 class ItemExtractor(object):
@@ -25,13 +26,12 @@ class ItemExtractor(object):
     self.spider_name = spiderName
     self.spider_id = spiderID
     
-  def extract_item(self, response):
+  def extract_items(self, response):
       # create an item
       item_info = self._get_item_info(response)
-      item = InterestItem(item_info["keys"])
+      item = ItemFromFieldNames(item_info["keys"])
       item_loader = self.item_loader_class(item, response, response_ctx=response)
-      return self._fill_item_loader(item_loader, item_info, response, 
-                                   self.item_selector.post_process_info)
+      return self._fill_item_loader(item_loader, item_info, response)
       
   def extract_favicon_item(self, siteURL):
     url_components = urlparse.urlparse(siteURL)
@@ -63,7 +63,7 @@ class ItemExtractor(object):
       item_info["values"].append(value_selector)
     return item_info
   
-  def _fill_item_loader(self, itemLoader, itemInfo, response, ppInfo):
+  def _fill_item_loader(self, itemLoader, itemInfo, response):
     """Fill an item loader with data from itemInfo and response"""
     table_selectors = [] # pack them because their processing differs from the rest
     for (key, value_selector) in zip(itemInfo["keys"], itemInfo["values"]):
@@ -109,16 +109,33 @@ class ItemExtractor(object):
         self._populateItemLoaderFromHTable(itemLoader, response, table_selector)
       elif table_selector.table_type == TableSelector.TABLE_VHEADERS:
         self._populateItemLoaderFromVTable(itemLoader, response, table_selector)
-    itemLoader.add_value("_id", self.spider_id)
-    # add the post processing information
-    itemLoader.add_value("_postinfo", ppInfo)
-    itemLoader.add_value("_spidertype", self.spider_type)
-    itemLoader.add_value("_spidername", self.spider_name)
-    # the response url. intentional because for selenium there's no requests on responses. 
-    # This means if there was a redirection on the item url, the redirected-to url is the one saved
-    itemLoader.add_value("_scrapedurl", response.url) 
     item = itemLoader.load_item()
-    return item
+    return self._extract_multiple_items(item, response)
+  
+  def _extract_multiple_items(self, item, response):
+    # image_urls field is added only to the first item
+    # determine the number of resulting items from the longest list of values
+    value_lengths = map(lambda key : len(item[key]) if key != "image_urls" else 0, 
+                        item)
+    number_of_items = max(value_lengths)
+    items = [ItemFromFieldNames(item.keys()) for _ in range(number_of_items)]
+    for field_name, values in item.iteritems():
+      # put a value successively in each item
+      if field_name == "image_urls" or field_name.startswith('_'):continue # will process image_urls in the end
+      values = arg_to_iter(values) # in case the item loader uses TakeFirst as output processor or similar
+      for i, value in enumerate(values):
+        current_item = items[i]
+        current_item[field_name] = value
+        current_item.setdefault("_id", self.spider_id)
+        current_item.setdefault("_postinfo", self.item_selector.post_process_info)
+        current_item.setdefault("_spidertype", self.spider_type)
+        current_item.setdefault("_spidername", self.spider_name)
+        # the response url. intentional because for selenium there's no requests on responses. 
+        # This means if there was a redirection on the item url, the redirected-to url is the one saved
+        current_item.setdefault("_scrapedurl", response.url) 
+    if items:
+      items[0] = item.get("image_urls")
+    return items
   
   def _selectFrom(self, selector, selectorType, response):
     """Apply the selector to response by selectorType without extraction"""
@@ -226,9 +243,9 @@ class FilteringItemExtractor(ItemExtractor, ItemFilterMixin):
     super(FilteringItemExtractor, self).__init__(*args, **kwargs)
     self.predicate = kwargs.get("filterPredicate")
     
-  def extract_item(self, response):
+  def extract_items(self, response):
     if self.predicate is None:
-      return ItemExtractor.extract_item(self, response)
+      return ItemExtractor.extract_items(self, response)
     if self.page_has_item(response):
-      return ItemExtractor.extract_item(self, response)
-    return None
+      return ItemExtractor.extract_items(self, response)
+    return []

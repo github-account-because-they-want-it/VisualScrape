@@ -18,8 +18,8 @@ class SeleniumItemExtractor(ItemExtractor):
     super(SeleniumItemExtractor, self).__init__(*args, **kwargs)
     self.browser_handler = browserHandler
   
-  def extract_item(self, response, browser):
-    item = super(SeleniumItemExtractor, self).extract_item(self, response)
+  def extract_items(self, response, browser):
+    item = super(SeleniumItemExtractor, self).extract_items(self, response)
     image_urls = item.pop("image_urls", None)
     if image_urls: # only add images field to the item if the results already include images. ie, no extra fields
       save_folder = self._get_image_save_path()
@@ -96,9 +96,9 @@ class FilteringItemExtractor(SeleniumItemExtractor, ItemFilterMixin):
   def __init__(self, filterPredicate):
     self.predicate = filterPredicate
     
-  def extract_item(self, response):
+  def extract_items(self, response):
     if self.predicate is None:
-      return ItemExtractor.extract_item(self, response)
+      return ItemExtractor.extract_items(self, response)
     if self.page_has_item(response):
-      return ItemExtractor.extract_item(self, response)
+      return ItemExtractor.extract_items(self, response)
     return None

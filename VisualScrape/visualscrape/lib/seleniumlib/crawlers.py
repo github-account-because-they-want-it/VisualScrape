@@ -32,7 +32,7 @@ class SeleniumSinglePageCrawler(SeleniumBaseCrawler):
     if self.favicon_required:
       favicon_item = self.item_extractor.extract_favicon_item(self.url)
       self.pipeline_handler.run_pipeline(favicon_item)
-    item = self.item_extractor.extract_item(browser_response)
+    item = self.item_extractor.extract_items(browser_response)
     self.pipeline_handler.run_pipeline(item)
     browser.quit()
     self.finishoff()
@@ -61,12 +61,12 @@ class SeleniumPageListCrawler(SeleniumBaseCrawler):
       favicon_item = self.item_extractor.extract_favicon_item(start_url)
       self.pipeline_handler.run_pipeline(favicon_item)
     browser_response = self.response_from_browser(browser)
-    start_item = self.item_extractor.extract_item(browser_response, browser)
+    start_item = self.item_extractor.extract_items(browser_response, browser)
     self.pipeline_handler.run_pipeline(start_item)
     for url in self.url_generator:
       browser.get(url)
       browser_response = self.response_from_browser(browser)
-      item = self.item_extractor.extract_item(browser_response, browser)
+      item = self.item_extractor.extract_items(browser_response, browser)
       self.pipeline_handler.run_pipeline(item)
     browser.quit()
     self.finishoff()
@@ -175,7 +175,7 @@ class SeleniumProductCrawler(SeleniumBaseCrawler):
         browser = self.get_item_browser(item_page) # this opens the link automatically
       time.sleep(self.download_delay) # get the delay from settings and apply it
       browser_reponse = self.response_from_browser(self._item_browser)
-      item = self.item_extractor.extract_item(browser_reponse)
+      item = self.item_extractor.extract_items(browser_reponse)
       self.pipeline_handler.run_pipeline(item)
       
   def get_item_browser(self, link=None):
