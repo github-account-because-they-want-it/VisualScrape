@@ -6,7 +6,6 @@ Created on Nov 20, 2014
 from twisted.internet import reactor
 from scrapy.crawler import Crawler
 from scrapy import signals
-from scrapy import log
 from scrapy.utils.project import get_project_settings
 from visualscrape import settings
 from visualscrape.lib.data import SpiderConfigManager
