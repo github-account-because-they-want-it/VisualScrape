@@ -1,6 +1,0 @@
-scrapy
-selenium
-pillow
-blinker
-stem
-pyside # or build from http://pyside.readthedocs.org/en/latest/building/linux.html
